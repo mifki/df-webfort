@@ -1,12 +1,40 @@
-DF=/Users/vit/Desktop/Macnewbie/Dwarf\ Fortress
+DFHACKVER ?= 0.34.11
+DFHACKREL ?= r3
 
-INC=-I/Users/vit/Downloads/dfhack/library/include -I/Users/vit/Downloads/dfhack/library/proto -I/Users/vit/Downloads/dfhack/depends/protobuf -I/Users/vit/Downloads/dfhack/depends/tthread -I/Users/vit/Downloads/dfhack/depends/lua/include -I/Users/vit/Downloads/nopoll-0.2.6.b130/src
-LIB=-L$(DF)/hack -ldfhack -L/Users/vit/Downloads/dfhack/build/depends/tthread -ldfhack-tinythread /Users/vit/Downloads/nopoll-0.2.6.b130/src/.libs/libnopoll.a -lssl -lcrypto -F$(DF)/libs -framework SDL
+DF ?= /Users/vit/Downloads/Macnewbie/Dwarf Fortress
+DH ?= /Users/vit/Downloads/dfhack-$(DFHACKREL)
 
-all: twbt.plug.so
+NOPOLL_I ?= nopoll/src
+NOPOLL_L ?= nopoll/src/.libs
 
-inst: twbt.plug.so
-	cp twbt.plug.so $(DF)/hack/plugins
+SRC = webfort.cpp
+DEP = 
+OUT = dist/dfhack-$(DFHACKREL)/webfort.plug.so
 
-twbt.plug.so: twbt.cpp
-	g++ twbt.cpp -o twbt.plug.so -m32 -shared -std=gnu++11 -stdlib=libstdc++ $(INC) $(LIB) -DDFHACK_VERSION=\"0.34.11-r3\" -Wno-ignored-attributes -Wno-tautological-compare
+INC = -I"$(DH)/library/include" -I"$(DH)/library/proto" -I"$(DH)/depends/protobuf" -I"$(DH)/depends/tthread" -I"$(DH)/depends/lua/include" -I$(NOPOLL_I)
+LIB = -L"$(DH)/build/library" -ldfhack -L"$(DH)/build/depends/tthread" -ldfhack-tinythread -lSDL $(NOPOLL_L)/libnopoll.a
+
+CFLAGS = $(INC) -m32 -DLINUX_BUILD
+LDFLAGS = $(LIB) -shared 
+
+ifeq ($(shell uname -s), Darwin)
+	CXX = c++ -std=gnu++0x -stdlib=libstdc++
+	CFLAGS += -Wno-tautological-compare
+	LDFLAGS += -framework OpenGL -lcrypto -lssl -mmacosx-version-min=10.6
+else
+	CXX = c++ -std=c++0x
+endif
+
+
+all: $(OUT)
+
+$(OUT): $(SRC) $(DEP)
+	-@mkdir -p `dirname $(OUT)`
+	pwd
+	$(CXX) $(SRC) -o $(OUT) -DDFHACK_VERSION=\"$(DFHACKVER)-$(DFHACKREL)\" $(CFLAGS) $(LDFLAGS)
+
+inst: $(OUT)
+	cp $(OUT) "$(DF)/hack/plugins/"
+
+clean:
+	-rm $(OUT)

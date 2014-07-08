@@ -17,8 +17,8 @@
 #   2 and so on are tilesets specified above
 # NewTile is the new tile number
 
-# Override tile if it didn't match any other overrides
-# Behaviour of this may be changed in future
+# Override tile if it didn't match any other rules
+# Behaviour of this may change in future
 # [OVERRIDE:Tile:Tileset:NewTile]
 
 # Examples
