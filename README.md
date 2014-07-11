@@ -4,6 +4,15 @@ This is a plugin for [Dwarf Fortress](http://bay12games.com) / [DFHack](http://g
 
 It also includes features provided by [Text Will Be Text](https://github.com/mifki/df-twbt) plugin (as of TWBT version 2.23).
 
+### Installation ###
+
+1. Install webfort plugin as usual.
+2. Copy `ShizzleClean.png` or any other text font to `data/art` folder.
+3. Copy all `.dll` files to your DF folder.
+4. Ensure that `PRINT_MODE` is set to `STANDARD` in your `init.txt`, and set `FONT` to `ShizzleClean.png`.
+5. Use any web server to serve files from `web` folder. You can use [Mongoose](http://cesanta.com/mongoose.shtml), just copy it to `web` folder and run.
+6. Navigate to `webfort.html` and enjoy.
+
 ### Authors and Links ###
 
 Vitaly Pronkin aka mifki <pronvit@me.com>
