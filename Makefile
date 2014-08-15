@@ -14,7 +14,7 @@ OUT = dist/dfhack-$(DFHACKREL)/webfort.plug.so
 INC = -I"$(DH)/library/include" -I"$(DH)/library/proto" -I"$(DH)/depends/protobuf" -I"$(DH)/depends/tthread" -I"$(DH)/depends/lua/include" -I$(NOPOLL_I)
 LIB = -L"$(DH)/build/library" -ldfhack -L"$(DH)/build/depends/tthread" -ldfhack-tinythread -lSDL $(NOPOLL_L)/libnopoll.a
 
-CFLAGS = $(INC) -m32 -DLINUX_BUILD
+CFLAGS = $(INC) -m32 -DLINUX_BUILD -O3
 LDFLAGS = $(LIB) -shared 
 
 ifeq ($(shell uname -s), Darwin)
