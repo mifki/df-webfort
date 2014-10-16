@@ -33,16 +33,18 @@
 .col-left {
   width: 75%;
 }
+canvas {
+  width: 100%;
+  height: auto;
+}
   </style>
   <script src="/js/stats.min.js"></script>
 </head>
 
 <body class="webfort-body">
-  <div class="col col-left">
+  <div id="game-container" class="col col-left">
     <div id="status" style="">Loading...</div>
-    <center>
-      <canvas id="myCanvas" width="1280" height="400"></canvas>
-    </center>
+    <canvas id="myCanvas" width="1280" height="400"></canvas>
   </div>
 
   <div id="webchat-container" class="col col-right">

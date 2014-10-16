@@ -6,7 +6,6 @@ function fitWebchatToWindow() {
 }
 
 function insertWebchat() {
-	console.log("WEEB CHAT");
 	var frame = document.createElement('iframe');
 	frame.setAttribute('id', 'webchat');
 	frame.setAttribute('src', iframeURL);

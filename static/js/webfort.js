@@ -32,8 +32,10 @@ function connect() {
 
 function fitCanvasToWindow() {
 	if (active) {
-		canvas.width = window.innerWidth & (~15);
-		canvas.height = (window.innerHeight - 20) & (~15);
+		// FIXME: Canvas resizing meshes poorly with the chatbox.
+		//canvas.width = window.innerWidth & (~15);
+		//canvas.height = (window.innerHeight - 20) & (~15);
+
 
 		var data = new Uint8Array([
 				112,
@@ -128,10 +130,12 @@ function onMessage(evt) {
 		var neww = data[2] * 16;
 		var newh = data[3] * 16;
 		// resizeCanvas
+		/*
 		if (neww != canvas.width || newh != canvas.height) {
 			canvas.width = neww;
 			canvas.height = newh;
 		}
+		*/
 
 		renderUpdate(ctx, data);
 
