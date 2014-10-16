@@ -10,8 +10,8 @@ It also includes features provided by [Text Will Be Text](https://github.com/mif
 2. Copy `ShizzleClean.png` or any other text font to `data/art` folder.
 3. Copy all `.dll` files to your DF folder.
 4. Ensure that `PRINT_MODE` is set to `STANDARD` in your `init.txt`, and set `FONT` to `ShizzleClean.png`.
-5. Use any web server to serve files from `web` folder. You can use [Mongoose](http://cesanta.com/mongoose.shtml), just copy it to `web` folder and run.
-6. Navigate to `webfort.html` and enjoy.
+5. Use any web server to serve files from `static` folder. You can use [Mongoose](http://cesanta.com/mongoose.shtml), just copy it to `static` folder and run.
+6. Navigate to `http://<YOUR HOST>/webfort.html` and enjoy.
 
 ### Authors and Links ###
 
