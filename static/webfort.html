@@ -1,24 +1,53 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<meta charset="utf-8" />
-	<title>Web Fortress</title>
-	<style>
-		body { font-size:14px; }
-		#status { height:20px;line-height:20px;background-color:orange;color:white;text-align:center; }
-	</style>
-	<script src="/js/stats.min.js"></script>
+  <meta charset="utf-8" />
+  <title>Web Fortress</title>
+  <style>
+.webfort-body {
+  font-size: 14px;
+  margin: 0;
+  background-color: rgb(32,39,49);
+  overflow: hidden;
+}
+#status {
+  height: 20px;
+  line-height: 20px;
+  background-color: orange;
+  color: white;
+  text-align: center;
+}
+#webchat {
+  width: 100%
+}
+.col {
+  position: relative;
+  min-height: 1px;
+  float: left;
+  margin-left:  0; margin-right:  0;
+  padding-left: 0; padding-right: 0;
+}
+.col-right {
+  width: 25%;
+}
+.col-left {
+  width: 75%;
+}
+  </style>
+  <script src="/js/stats.min.js"></script>
 </head>
 
-<body style="margin:0;background-color:rgb(32,39,49);_overflow:hidden;">
-	<span style="position:absolute;right:20px;top:0;height:20px;line-height:20px;display:inline-block;">
-		<a href="http://www.bay12forums.com/smf/index.php?topic=139167.0" target="_blank" style="color:white;">Discussion thread</a>
-	</span>
-	<div id="status" style="">Loading...</div>
+<body class="webfort-body">
+  <div class="col col-left">
+    <div id="status" style="">Loading...</div>
+    <center>
+      <canvas id="myCanvas" width="1280" height="400"></canvas>
+    </center>
+  </div>
 
-	<center>
-		<canvas id="myCanvas" width="1280" height="400"></canvas>
-	</center>
-	<script src="/js/webfort.js"></script>
+  <div id="webchat-container" class="col col-right">
+  </div>
+  <script src="/js/webfort.js"></script>
+  <script src="/js/webchat.js"></script>
 </body>
 </html>

@@ -253,4 +253,3 @@ document.onkeypress = function(ev) {
 };
 
 window.onresize = fitCanvasToWindow;
-
