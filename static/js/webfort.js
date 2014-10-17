@@ -11,8 +11,8 @@ if (document.location.hash) {
 	host = document.location.hostname;
 }
 var wsUri = 'ws://' + host + ':1234/';
-var active = false,
-	lastqpos = -1;
+var active = false;
+var lastqpos = -1;
 var spectator = true;
 
 function setStatus(text, color) {
@@ -36,7 +36,6 @@ function fitCanvasToWindow() {
 		// FIXME: Canvas resizing meshes poorly with the chatbox.
 		//canvas.width = window.innerWidth & (~15);
 		//canvas.height = (window.innerHeight - 20) & (~15);
-
 
 		var data = new Uint8Array([
 				112,
@@ -206,7 +205,8 @@ function init() {
 var stats = new Stats();
 document.body.appendChild(stats.domElement);
 stats.domElement.style.position = "absolute";
-stats.domElement.style.top = "0px";
+stats.domElement.style.bottom = "0";
+stats.domElement.style.left   = "0";
 
 var l1 = false;
 var ts = document.createElement('img');
