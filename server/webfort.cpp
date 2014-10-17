@@ -1278,9 +1278,11 @@ void listener_on_message (noPollCtx * ctx, noPollConn * conn, noPollMsg * msg, n
 	else if(mdata[0] == 116)
 	{
 		cl->spectator = !cl->spectator;
+		char buff []= {116, (char)(cl->spectator?1:0)};
+		nopoll_conn_send_binary(conn, buff, 2);
 	}
     else
-    {
+	{
         bool soon = false;
         if (activeidx != -1 && clients.size() > 1)
         {

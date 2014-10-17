@@ -13,6 +13,7 @@ if (document.location.hash) {
 var wsUri = 'ws://' + host + ':1234/';
 var active = false,
 	lastqpos = -1;
+var spectator = true;
 
 function setStatus(text, color) {
 	var st = document.getElementById('status');
@@ -143,7 +144,9 @@ function onMessage(evt) {
 
 		stats.end();
 	}
-
+	else if (data[0] == 116) {
+		spectator= (data[1]==1 ? true : false);
+	}
 	setTimeout(function() {
 		websocket.send(new Uint8Array([110]));
 	}, 1000 / 30);
