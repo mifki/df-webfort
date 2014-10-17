@@ -57,7 +57,9 @@ function onOpen(evt) {
 function onClose(evt) {
 	setStatus('Disconnected', 'red');
 }
-
+function toggleSpectator()  {
+	websocket.send(new Uint8Array([116]));
+}
 function renderQueueStatus(qpos, almostOver) {
 	if (qpos === 0) {
 		if (!active) {
