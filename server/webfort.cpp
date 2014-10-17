@@ -205,6 +205,7 @@ struct override {
 typedef struct {
     noPollConn *conn;
     bool active;
+	bool spectator;
     unsigned char mod[256*256];
     time_t itime;
     time_t atime;
@@ -1143,18 +1144,24 @@ void setactive(int newidx)
         return;
 
     Client *newcl = clients[activeidx];
-    newcl->active = true;
-    newcl->atime = newcl->itime = time(NULL);
-    memset(newcl->mod, 0, sizeof(newcl->mod));
 
-    if (!(*df::global::pause_state))
-    {
-        simkey(1, 0, SDL::K_SPACE, ' ');
-        simkey(0, 0, SDL::K_SPACE, ' ');
-    }
-    //shownextturn = true;
+	if (newcl->spectator)
+		setactive(activeidx + 1);
+	else
+	{
+		newcl->active = true;
+		newcl->atime = newcl->itime = time(NULL);
+		memset(newcl->mod, 0, sizeof(newcl->mod));
 
-    *out2 << "active " << activeidx << " " << (activeidx == -1 ? "-" : nopoll_conn_host(clients[activeidx]->conn)) << std::endl;    
+		if (!(*df::global::pause_state))
+		{
+			simkey(1, 0, SDL::K_SPACE, ' ');
+			simkey(0, 0, SDL::K_SPACE, ' ');
+		}
+		//shownextturn = true;
+
+		*out2 << "active " << activeidx << " " << (activeidx == -1 ? "-" : nopoll_conn_host(clients[activeidx]->conn)) << std::endl;
+	}
 }
 
 void listener_on_message (noPollCtx * ctx, noPollConn * conn, noPollMsg * msg, noPollPtr user_data)
@@ -1268,6 +1275,10 @@ void listener_on_message (noPollCtx * ctx, noPollConn * conn, noPollMsg * msg, n
     {
         memset(cl->mod, 0, sizeof(cl->mod));
     }
+	else if(mdata[0] == 116)
+	{
+		cl->spectator = !cl->spectator;
+	}
     else
     {
         bool soon = false;
@@ -1372,6 +1383,7 @@ nopoll_bool listener_on_accept (noPollCtx * ctx, noPollConn * conn, noPollPtr us
     Client *cl = new Client;
     cl->conn = conn;
     cl->active = false;
+	cl->spectator = true;
 
     nopoll_conn_set_on_msg(conn, listener_on_message, cl);
     nopoll_conn_set_on_close(conn, listener_on_close, cl);
