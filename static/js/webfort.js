@@ -11,17 +11,19 @@ if (document.location.hash) {
 	host = document.location.hostname;
 }
 var wsUri = 'ws://' + host + ':1234/';
-var active = false,
-	lastqpos = -1;
-var spectator = true;
+var active = false;
 
-function setStatus(text, color) {
+function setStatus(text, color, onclick) {
 	var st = document.getElementById('status');
+	if (onclick) {
+		st.addEventListener('click', onclick);
+	}
 	st.innerHTML = text;
 	st.style.backgroundColor = color;
 }
 
 function connect() {
+	setStatus('Connecting...', 'orange');
 	websocket = new WebSocket(wsUri);
 	websocket.binaryType = 'arraybuffer';
 
@@ -56,34 +58,27 @@ function onOpen(evt) {
 }
 
 function onClose(evt) {
-	setStatus('Disconnected', 'red');
+	setStatus('Disconnected. Click to retry.', 'red', connect);
 }
-function toggleSpectator()  {
+
+function requestTurn() {
 	websocket.send(new Uint8Array([116]));
 }
-function renderQueueStatus(qpos, almostOver) {
-	if (qpos === 0) {
-		if (!active) {
-			setStatus("You're in charge now!", 'green');
-			active = true;
-			lastqpos = -1;
 
-			fitCanvasToWindow();
-		} else if (almostOver) {
-			setStatus("You're in charge now! Less than a minute left.", 'green');
-		}
+function renderQueueStatus(isActive, players, timeLeft) {
+	if (isActive) {
+		active = true;
+		setStatus("You're in charge now!", 'green');
+	} else if (timeLeft === -1) {
+		setStatus("Nobody is playing right now. Click here to ask for a turn.", 'grey', requestTurn);
 	} else {
-		if (lastqpos !== qpos) {
-			lastqpos = qpos;
-			active = false;
-			setStatus('Your position in the waiting queue is ' + qpos, 'orange');
-		}
+		setStatus("Somebody else is playing right now." + timeLeft, 'orange');
 	}
 }
 
 function renderUpdate(ctx, data) {
 	var t = [];
-	for (var k = 4; k < data.length; k += 5) {
+	for (var k = 8; k < data.length; k += 5) {
 		var x = data[k + 0];
 		var y = data[k + 1];
 
@@ -126,12 +121,19 @@ function onMessage(evt) {
 	if (data[0] === 110) {
 		stats.begin();
 
-		var qpos = data[1] & 127;
-		var soon = data[1] & 128;
-		renderQueueStatus(qpos, soon);
+		var players = data[1] & 127;
+		var isActive = data[1] & 128;
+		var timeLeft =
+			(data[2]<<0) |
+			(data[3]<<8) |
+			(data[4]<<16) |
+			(data[5]<<24);
+		console.log(timeLeft);
+		renderQueueStatus(isActive, players, timeLeft);
 
-		var neww = data[2] * 16;
-		var newh = data[3] * 16;
+
+		var neww = data[6] * 16;
+		var newh = data[7] * 16;
 		// resizeCanvas
 		/*
 		if (neww != canvas.width || newh != canvas.height) {
@@ -199,7 +201,6 @@ function init() {
 	ct.width = ct.height = 1024;
 	colorize(tt, ct);
 
-	setStatus('Connecting...', 'orange');
 	connect();
 }
 
