@@ -1,3 +1,4 @@
+// vim et sw=4 sts=4
 //
 //  webfort.cpp
 //  Web Fortress
@@ -70,7 +71,7 @@ extern int SDL_PushEvent( SDL::Event* event );
 
 #include <nopoll.h>
 
-#define PLAYTIME 60*15
+#define PLAYTIME 60*10
 #define IDLETIME 60*3
 
 typedef float GLfloat;
@@ -137,11 +138,11 @@ __declspec(naked) void load_multi_pdim_x(void *tex, const string &filename, long
         mov esp, ebp
         pop ebp
         ret
-    }    
+    }
 }
 #else
 #define load_multi_pdim_x load_multi_pdim
-#endif        
+#endif
 
 #ifdef WIN32
 __declspec(naked) void render_old_x(df::renderer *r)
@@ -157,10 +158,10 @@ __declspec(naked) void render_old_x(df::renderer *r)
         pop ebp
         ret
     }
-}    
+}
 #else
 #define render_old_x render_old
-#endif    
+#endif
 
 #ifdef WIN32
 __declspec(naked) void update_tile_old_x(df::renderer *r, int x, int y)
@@ -178,11 +179,11 @@ __declspec(naked) void update_tile_old_x(df::renderer *r, int x, int y)
         mov esp, ebp
         pop ebp
         ret
-    }   
-} 
+    }
+}
 #else
 #define update_tile_old_x update_tile_old
-#endif    
+#endif
 
 struct tileset {
     string small_font_path;
@@ -205,7 +206,6 @@ struct override {
 typedef struct {
     noPollConn *conn;
     bool active;
-	bool spectator;
     unsigned char mod[256*256];
     time_t itime;
     time_t atime;
@@ -245,7 +245,7 @@ bool is_text_tile(int x, int y, bool &is_map)
     if (!x || !y || x == w - 1 || y == h - 1)
        return has_textfont;
 
-#define IS_SCREEN(_sc) df::_sc::_identity.is_direct_instance(ws) 
+#define IS_SCREEN(_sc) df::_sc::_identity.is_direct_instance(ws)
 
     if (IS_SCREEN(viewscreen_dwarfmodest))
     {
@@ -267,14 +267,14 @@ bool is_text_tile(int x, int y, bool &is_map)
         else if (menu_width == 1) // Wide menu
             menu_left = w - 56;
         else if (menuforced || (menu_width == 2 && area_map_width == 3)) // Menu only
-            menu_left = w - 32; 
+            menu_left = w - 32;
 
         if (x >= menu_left && x <= menu_right)
         {
             if (menuforced && ui->main.mode == df::ui_sidebar_mode::Burrows && ui->burrows.in_define_mode)
             {
                 // Make burrow symbols use graphics font
-                if ((y != 12 && y != 13 && !(x == menu_left + 2 && y == 2)) || x == menu_left || x == menu_right) 
+                if ((y != 12 && y != 13 && !(x == menu_left + 2 && y == 2)) || x == menu_left || x == menu_right)
                     return has_textfont;
             }
             else
@@ -287,7 +287,7 @@ bool is_text_tile(int x, int y, bool &is_map)
     }
 
     if (!has_textfont)
-        return false;    
+        return false;
 
     if (IS_SCREEN(viewscreen_setupadventurest))
     {
@@ -299,7 +299,7 @@ bool is_text_tile(int x, int y, bool &is_map)
 
         return false;
     }
-    
+
     if (IS_SCREEN(viewscreen_dungeonmodest))
     {
         //df::viewscreen_dungeonmodest *s = strict_virtual_cast<df::viewscreen_dungeonmodest>(ws);
@@ -318,7 +318,7 @@ bool is_text_tile(int x, int y, bool &is_map)
 
         return false;
     }
-        
+
     if (IS_SCREEN(viewscreen_new_regionst))
     {
         if (y <= 1 || y >= h - 2 || x <= 37 || x == w - 1)
@@ -347,7 +347,7 @@ bool is_text_tile(int x, int y, bool &is_map)
     {
         df::viewscreen_movieplayerst *s = static_cast<df::viewscreen_movieplayerst*>(ws);
         return !s->is_playing;
-    }    
+    }
 
     /*if (IS_SCREEN(viewscreen_petst))
     {
@@ -375,7 +375,7 @@ void screen_to_texid2(df::renderer *r, int x, int y, struct texture_fullid &ret)
     bold = (s[3] != 0) * 8;
     fg   = (s[1] + bold) % 16;
     bg   = s[2] % 16;
-  
+
     const long texpos             = r->screentexpos[tile];
     const char addcolor           = r->screentexpos_addcolor[tile];
     const unsigned char grayscale = r->screentexpos_grayscale[tile];
@@ -399,7 +399,7 @@ void screen_to_texid2(df::renderer *r, int x, int y, struct texture_fullid &ret)
       }
       return;
     }
-  
+
   ret.texpos = enabler->fullscreen ?
     init->font.large_font_texpos[ch] :
     init->font.small_font_texpos[ch];
@@ -417,13 +417,13 @@ void write_tile_arrays(df::renderer *r, int x, int y, GLfloat *fg, GLfloat *bg, 
 {
     struct texture_fullid ret;
     screen_to_texid2(r, x, y, ret);
-        
+
     for (int i = 0; i < 6; i++) {
         *(fg++) = ret.r;
         *(fg++) = ret.g;
         *(fg++) = ret.b;
         *(fg++) = 1;
-        
+
         *(bg++) = ret.br;
         *(bg++) = ret.bg;
         *(bg++) = ret.bb;
@@ -432,9 +432,9 @@ void write_tile_arrays(df::renderer *r, int x, int y, GLfloat *fg, GLfloat *bg, 
 
     const int tile = x * gps->dimy + y;
     const unsigned char *s = r->screen + tile*4;
-    unsigned char *ss = sc + tile*4;    
+    unsigned char *ss = sc + tile*4;
     *(unsigned int*)ss = *(unsigned int*)s;
-    
+
     bool is_map;
     if (is_text_tile(x, y, is_map))
     {
@@ -501,7 +501,7 @@ void write_tile_arrays(df::renderer *r, int x, int y, GLfloat *fg, GLfloat *bg, 
                                 continue;
 
                             matched = true;
-                            break;                            
+                            break;
                         }
                     }
 
@@ -525,8 +525,8 @@ void write_tile_arrays(df::renderer *r, int x, int y, GLfloat *fg, GLfloat *bg, 
     }
 
     for (int i = 0; i < clients.size(); i++)
-        clients[i]->mod[tile] = 0;    
-    
+        clients[i]->mod[tile] = 0;
+
     // Set texture coordinates
     gl_texpos *txt = (gl_texpos*) enabler->textures.gl_texpos;
     *(tex++) = txt[ret.texpos].left;   // Upper left
@@ -535,7 +535,7 @@ void write_tile_arrays(df::renderer *r, int x, int y, GLfloat *fg, GLfloat *bg, 
     *(tex++) = txt[ret.texpos].bottom;
     *(tex++) = txt[ret.texpos].left;   // Lower left
     *(tex++) = txt[ret.texpos].top;
-    
+
     *(tex++) = txt[ret.texpos].left;   // Lower left
     *(tex++) = txt[ret.texpos].top;
     *(tex++) = txt[ret.texpos].right;  // Upper right
@@ -618,7 +618,7 @@ void render(df::renderer *r)
         popup->bright = 0;
         world->status.popups.push_back(popup);
 
-        shownextturn = false;        
+        shownextturn = false;
     }*/
 
     render_old_x(r);
@@ -646,7 +646,7 @@ void hook()
     render_old = (void(*)(df::renderer *r))rVtable[0][2];
     rVtable[0][2] = (long)&render;
 
-    enabled = true;   
+    enabled = true;
 
 #ifdef WIN32
     VirtualProtectEx( process, rVtable[0], 4*sizeof(void*), oldProtection, &oldProtection );
@@ -705,7 +705,7 @@ bool get_font_paths()
 
             if (tokens.size() != 2)
                 continue;
-                                
+
             if(tokens[0] == "FONT")
             {
                 small_font_path = "data/art/" + tokens[1];
@@ -728,12 +728,12 @@ bool get_font_paths()
             {
                 glarge_font_path = "data/art/" + tokens[1];
                 continue;
-            }                    
+            }
         }
     }
 
     fseed.close();
-    
+
     if (!(small_font_path == gsmall_font_path && large_font_path == glarge_font_path))
     {
         struct tileset ts;
@@ -779,7 +779,7 @@ bool load_overrides()
                 tilesets.push_back(ts);
                 continue;
             }
-            
+
             if (tokens[0] == "OVERRIDE")
             {
                 if (tokens.size() == 6)
@@ -941,7 +941,7 @@ struct traderesize_hook : public df::viewscreen_tradegoodsst
                 Core::getInstance().p->patchMemory((void*)(0x0079ef96+2), &x, 1); //value
 
                 x = x1 + 1 + 1 + 16;
-                Core::getInstance().p->patchMemory((void*)(0x0079d84d+2), &x, 1); //max weight            
+                Core::getInstance().p->patchMemory((void*)(0x0079d84d+2), &x, 1); //max weight
 
                 x = x1 + 1 + 2 - 2;
                 Core::getInstance().p->patchMemory((void*)(0x0079cd6b+7), &x, 1); //item name
@@ -990,20 +990,20 @@ DFhackCExport command_result plugin_init ( color_ostream &out, vector <PluginCom
         out.color(COLOR_RED);
         out << "TWBT: PRINT_MODE must be set to STANDARD or VBO in init.txt" << std::endl;
         out.color(COLOR_RESET);
-        return CR_OK;        
+        return CR_OK;
     }
 
     out2 = &out;
-    
+
 #ifdef WIN32
     load_multi_pdim = (void (*)(void *tex, const string &filename, long *tex_pos, long dimx,
-        long dimy, bool convert_magenta, long *disp_x, long *disp_y)) (0x00a52670+(Core::getInstance().vinfo->getRebaseDelta()));    
+        long dimy, bool convert_magenta, long *disp_x, long *disp_y)) (0x00a52670+(Core::getInstance().vinfo->getRebaseDelta()));
 #elif defined(__APPLE__)
     load_multi_pdim = (void (*)(void *tex, const string &filename, long *tex_pos, long dimx,
-        long dimy, bool convert_magenta, long *disp_x, long *disp_y)) 0x00cfbbb0;    
+        long dimy, bool convert_magenta, long *disp_x, long *disp_y)) 0x00cfbbb0;
 #else
     load_multi_pdim = (void (*)(void *tex, const string &filename, long *tex_pos, long dimx,
-        long dimy, bool convert_magenta, long *disp_x, long *disp_y)) dlsym(RTLD_DEFAULT,"_ZN8textures15load_multi_pdimERKSsPlllbS2_S2_");    
+        long dimy, bool convert_magenta, long *disp_x, long *disp_y)) dlsym(RTLD_DEFAULT,"_ZN8textures15load_multi_pdimERKSsPlllbS2_S2_");
 #endif
 
     bad_item_flags.whole = 0;
@@ -1032,14 +1032,14 @@ DFhackCExport command_result plugin_init ( color_ostream &out, vector <PluginCom
     {
         out.color(COLOR_YELLOW);
         out << "TWBT: FONT and GRAPHICS_FONT are the same" << std::endl;
-        out.color(COLOR_RESET);        
+        out.color(COLOR_RESET);
     }
 
 #ifdef __APPLE__
     INTERPOSE_HOOK(traderesize_hook, render).apply(true);
 #endif
 
-    wsthread = new tthread::thread(wsthreadmain, 0);    
+    wsthread = new tthread::thread(wsthreadmain, 0);
 
     return CR_OK;
 }
@@ -1051,7 +1051,7 @@ DFhackCExport command_result plugin_shutdown ( color_ostream &out )
 
 #ifdef __APPLE__
     INTERPOSE_HOOK(traderesize_hook, render).apply(false);
-#endif    
+#endif
 
     return CR_OK;
 }
@@ -1131,7 +1131,7 @@ void simkey(int down, int mod, SDL::Key sym, int unicode)
     event.key.ksym.sym = sym;
     event.key.ksym.unicode = unicode;
 
-    SDL_PushEvent(&event);    
+    SDL_PushEvent(&event);
 }
 
 void setactive(int newidx)
@@ -1145,23 +1145,18 @@ void setactive(int newidx)
 
     Client *newcl = clients[activeidx];
 
-	if (newcl->spectator)
-		setactive(activeidx + 1);
-	else
-	{
-		newcl->active = true;
-		newcl->atime = newcl->itime = time(NULL);
-		memset(newcl->mod, 0, sizeof(newcl->mod));
+    newcl->active = true;
+    newcl->atime = newcl->itime = time(NULL);
+    memset(newcl->mod, 0, sizeof(newcl->mod));
 
-		if (!(*df::global::pause_state))
-		{
-			simkey(1, 0, SDL::K_SPACE, ' ');
-			simkey(0, 0, SDL::K_SPACE, ' ');
-		}
-		//shownextturn = true;
+    if (!(*df::global::pause_state))
+    {
+        simkey(1, 0, SDL::K_SPACE, ' ');
+        simkey(0, 0, SDL::K_SPACE, ' ');
+    }
+    //shownextturn = true;
 
-		*out2 << "active " << activeidx << " " << (activeidx == -1 ? "-" : nopoll_conn_host(clients[activeidx]->conn)) << std::endl;
-	}
+    *out2 << "active " << activeidx << " " << (activeidx == -1 ? "-" : nopoll_conn_host(clients[activeidx]->conn)) << std::endl;
 }
 
 void listener_on_message (noPollCtx * ctx, noPollConn * conn, noPollMsg * msg, noPollPtr user_data)
@@ -1175,12 +1170,12 @@ void listener_on_message (noPollCtx * ctx, noPollConn * conn, noPollMsg * msg, n
             idx = i;
             break;
         }
-    }    
+    }
 
     const unsigned char *mdata = (const unsigned char*) nopoll_msg_get_payload(msg);
     int msz = nopoll_msg_get_payload_size(msg);
 
-    if (mdata[0] == 112 && msz == 3)
+    if (mdata[0] == 112 && msz == 3) // ResizeEvent
     {
         if (cl->active)
         {
@@ -1189,7 +1184,7 @@ void listener_on_message (noPollCtx * ctx, noPollConn * conn, noPollMsg * msg, n
             needsresize = true;
         }
     }
-    else if (mdata[0] == 111 && msz == 4)
+    else if (mdata[0] == 111 && msz == 4) // KeyEvent
     {
         if (cl->active)
         {
@@ -1271,44 +1266,50 @@ void listener_on_message (noPollCtx * ctx, noPollConn * conn, noPollMsg * msg, n
 
         //nopoll_conn_send_binary (conn, "\0\0\0", 3);
     }*/
-    else if (mdata[0] == 115)
+    else if (mdata[0] == 115) // ModifierEvent
     {
         memset(cl->mod, 0, sizeof(cl->mod));
     }
-	else if(mdata[0] == 116)
-	{
-		cl->spectator = !cl->spectator;
-		char buff []= {116, (char)(cl->spectator?1:0)};
-		nopoll_conn_send_binary(conn, buff, 2);
-	}
+    else if (mdata[0] == 116) // requestTurn
+    {
+        if (activeidx == -1) {
+            setactive(idx);
+        }
+    }
     else
-	{
-        bool soon = false;
+    {
+        // Tock
+        int32_t time_left = -1;
         if (activeidx != -1 && clients.size() > 1)
         {
             time_t now = time(NULL);
             int played = now - clients[activeidx]->atime;
             int idle = now - clients[activeidx]->itime;
-            if (played >= PLAYTIME || idle >= IDLETIME)
-                setactive(activeidx+1);
-            else if (cl->active)
-            {
-                if (PLAYTIME - played < 60)
-                    soon = true;
+            if (played >= PLAYTIME || idle >= IDLETIME) {
+                setactive(-1);
+                time_left = -1;
+            } else {
+                time_left = PLAYTIME - played;
             }
         }
         int sent = 1;
 
         unsigned char *b = buf;
+        // [0] msgtype
         *(b++) = 110;
 
-        int qpos = idx - activeidx;
-        if (qpos < 0)
-            qpos = -qpos;
-        if (soon)
-            qpos |= 128;
-        *(b++) = qpos;
+        uint8_t client_count = clients.size();
+        if (cl->active) {
+            client_count |= 128;
+        }
+        // [1] # of connected clients. 128 bit set if client is active player.
+        *(b++) = client_count;
 
+        // [2-5] time left, in seconds. -1 if no player.
+        memcpy(b, &time_left, sizeof(time_left));
+        b += sizeof(time_left);
+
+        // [6-7] game dimensions
         *(b++) = gps->dimx;
         *(b++) = gps->dimy;
 
@@ -1339,7 +1340,7 @@ void listener_on_message (noPollCtx * ctx, noPollConn * conn, noPollMsg * msg, n
                 mod[tile] = 1;
             }
         }
-    
+
         if (b == emptyb)
         {
             nopoll_conn_send_binary (conn, "\0", 1);
@@ -1367,14 +1368,15 @@ void listener_on_close (noPollCtx * ctx, noPollConn * conn, noPollPtr user_data)
             clients.erase(clients.begin()+i);
             delete cl;
 
-            if (activeidx == i)
-                setactive(activeidx);
+            if (activeidx == i) {
+                setactive(-1);
+            }
 
             break;
         }
     }
 
-    *out2 << "disconnected " << nopoll_conn_host(conn) << " count " << clients.size() << " active " << activeidx << " " << (activeidx == -1 ? "-" : nopoll_conn_host(clients[activeidx]->conn)) << std::endl;    
+    *out2 << "disconnected " << nopoll_conn_host(conn) << " count " << clients.size() << " active " << activeidx << " " << (activeidx == -1 ? "-" : nopoll_conn_host(clients[activeidx]->conn)) << std::endl;
 }
 
 nopoll_bool listener_on_accept (noPollCtx * ctx, noPollConn * conn, noPollPtr user_data)
@@ -1385,17 +1387,13 @@ nopoll_bool listener_on_accept (noPollCtx * ctx, noPollConn * conn, noPollPtr us
     Client *cl = new Client;
     cl->conn = conn;
     cl->active = false;
-	cl->spectator = true;
 
     nopoll_conn_set_on_msg(conn, listener_on_message, cl);
     nopoll_conn_set_on_close(conn, listener_on_close, cl);
 
     clients.push_back(cl);
 
-    if (activeidx == -1)
-        setactive(clients.size() - 1);
-
-    *out2 << "connected " << nopoll_conn_host(conn) << " count " << clients.size() << " active " << activeidx << " " << nopoll_conn_host(clients[activeidx]->conn) << std::endl;    
+    *out2 << "connected " << nopoll_conn_host(conn) << " count " << clients.size() << std::endl;
 
     return true;
 }
@@ -1413,11 +1411,11 @@ void wsthreadmain(void *dummy)
     if (!nopoll_conn_is_ok(listener)) {
          // some error handling here
     }
- 
+
     // now set a handler that will be called when a message (fragment or not) is received
     //nopoll_ctx_set_on_msg (ctx, listener_on_message, NULL);
     nopoll_ctx_set_on_accept (ctx, listener_on_accept, NULL);
- 
-    // now call to wait for the loop to notify events 
-    nopoll_loop_wait (ctx, 0);    
+
+    // now call to wait for the loop to notify events
+    nopoll_loop_wait (ctx, 0);
 }
