@@ -39,7 +39,6 @@ function fitCanvasToWindow() {
 		//canvas.width = window.innerWidth & (~15);
 		//canvas.height = (window.innerHeight - 20) & (~15);
 
-
 		var data = new Uint8Array([
 				112,
 				Math.floor(canvas.width / 16),
@@ -207,7 +206,8 @@ function init() {
 var stats = new Stats();
 document.body.appendChild(stats.domElement);
 stats.domElement.style.position = "absolute";
-stats.domElement.style.top = "0px";
+stats.domElement.style.bottom = "0";
+stats.domElement.style.left   = "0";
 
 var l1 = false;
 var ts = document.createElement('img');
