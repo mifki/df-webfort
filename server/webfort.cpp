@@ -205,7 +205,6 @@ struct override {
 
 typedef struct {
     noPollConn *conn;
-    bool active;
     unsigned char mod[256*256];
     time_t itime;
     time_t atime;
@@ -977,7 +976,7 @@ DFhackCExport command_result plugin_init ( color_ostream &out, vector <PluginCom
     if (!dflags.is_set(init_display_flags::USE_GRAPHICS))
     {
         out.color(COLOR_RED);
-        out << "TWBT: GRAPHICS is not enabled in init.txt" << std::endl;
+        out << "Webfort: GRAPHICS is not enabled in init.txt" << std::endl;
         out.color(COLOR_RESET);
         return CR_OK;
     }
@@ -988,7 +987,7 @@ DFhackCExport command_result plugin_init ( color_ostream &out, vector <PluginCom
         dflags.is_set(init_display_flags::PARTIAL_PRINT))
     {
         out.color(COLOR_RED);
-        out << "TWBT: PRINT_MODE must be set to STANDARD or VBO in init.txt" << std::endl;
+        out << "Webfort: PRINT_MODE must be set to STANDARD or VBO in init.txt" << std::endl;
         out.color(COLOR_RESET);
         return CR_OK;
     }
@@ -1031,7 +1030,7 @@ DFhackCExport command_result plugin_init ( color_ostream &out, vector <PluginCom
     if (!has_textfont)
     {
         out.color(COLOR_YELLOW);
-        out << "TWBT: FONT and GRAPHICS_FONT are the same" << std::endl;
+        out << "Webfort: FONT and GRAPHICS_FONT are the same" << std::endl;
         out.color(COLOR_RESET);
     }
 
@@ -1136,33 +1135,99 @@ void simkey(int down, int mod, SDL::Key sym, int unicode)
 
 void setactive(int newidx)
 {
-    if (newidx >= clients.size())
-        newidx = clients.size() > 0 ? 0 : -1;
+    if (newidx >= clients.size()) {
+        newidx = -1;
+    }
 
     activeidx = newidx;
-    if (activeidx == -1)
-        return;
 
-    Client *newcl = clients[activeidx];
 
-    newcl->active = true;
-    newcl->atime = newcl->itime = time(NULL);
-    memset(newcl->mod, 0, sizeof(newcl->mod));
+    if (activeidx != -1) {
+        Client *newcl = clients[activeidx];
+
+        newcl->atime = newcl->itime = time(NULL);
+        memset(newcl->mod, 0, sizeof(newcl->mod));
+    }
 
     if (!(*df::global::pause_state))
     {
         simkey(1, 0, SDL::K_SPACE, ' ');
         simkey(0, 0, SDL::K_SPACE, ' ');
     }
-    //shownextturn = true;
-
     *out2 << "active " << activeidx << " " << (activeidx == -1 ? "-" : nopoll_conn_host(clients[activeidx]->conn)) << std::endl;
+}
+
+void tock(noPollConn* conn, int idx)
+{
+    // Tock
+    Client* cl = clients[idx];
+    int32_t time_left = -1;
+    if (activeidx != -1 && clients.size() > 1)
+    {
+        time_t now = time(NULL);
+        int played = now - clients[activeidx]->atime;
+        int idle = now - clients[activeidx]->itime;
+        if (played >= PLAYTIME || idle >= IDLETIME) {
+            setactive(-1);
+            time_left = -1;
+        } else {
+            time_left = PLAYTIME - played;
+        }
+    }
+    int sent = 1;
+
+    unsigned char *b = buf;
+    // [0] msgtype
+    *(b++) = 110;
+
+    uint8_t client_count = clients.size();
+    if (idx == activeidx) {
+        client_count |= 128;
+    }
+    // [1] # of connected clients. 128 bit set if client is active player.
+    *(b++) = client_count;
+
+    // [2-5] time left, in seconds. -1 if no player.
+    memcpy(b, &time_left, sizeof(time_left));
+    b += sizeof(time_left);
+
+    // [6-7] game dimensions
+    *(b++) = gps->dimx;
+    *(b++) = gps->dimy;
+
+    unsigned char *emptyb = b;
+    unsigned char *mod = cl->mod;
+
+        //int tile = 0;
+    for (int y = 0; y < gps->dimy; y++)
+    {
+        for (int x = 0; x < gps->dimx; x++)
+        {
+            const int tile = x * gps->dimy + y;
+            unsigned char *s = sc + tile*4;
+            if (mod[tile])
+                continue;
+
+            *(b++) = x;
+            *(b++) = y;
+            *(b++) = s[0];
+            *(b++) = s[2];
+
+            int bold = (s[3] != 0) * 8;
+            int fg   = (s[1] + bold) % 16;
+
+            *(b++) = fg;
+            mod[tile] = 1;
+        }
+    }
+
+    nopoll_conn_send_binary (conn, (const char*)buf, (int)(b-buf));
 }
 
 void listener_on_message (noPollCtx * ctx, noPollConn * conn, noPollMsg * msg, noPollPtr user_data)
 {
     Client *cl = (Client*) user_data;
-    int idx = 0;
+    int idx = -1;
     for (int i = 0; i < clients.size(); i++)
     {
         if (clients[i] == cl)
@@ -1177,7 +1242,7 @@ void listener_on_message (noPollCtx * ctx, noPollConn * conn, noPollMsg * msg, n
 
     if (mdata[0] == 112 && msz == 3) // ResizeEvent
     {
-        if (cl->active)
+        if (idx == activeidx)
         {
             newwidth = mdata[1];
             newheight = mdata[2];
@@ -1186,7 +1251,7 @@ void listener_on_message (noPollCtx * ctx, noPollConn * conn, noPollMsg * msg, n
     }
     else if (mdata[0] == 111 && msz == 4) // KeyEvent
     {
-        if (cl->active)
+        if (idx == activeidx)
         {
             cl->itime = time(NULL);
 
@@ -1280,80 +1345,7 @@ void listener_on_message (noPollCtx * ctx, noPollConn * conn, noPollMsg * msg, n
     }
     else
     {
-        // Tock
-        int32_t time_left = -1;
-        if (activeidx != -1 && clients.size() > 1)
-        {
-            time_t now = time(NULL);
-            int played = now - clients[activeidx]->atime;
-            int idle = now - clients[activeidx]->itime;
-            if (played >= PLAYTIME || idle >= IDLETIME) {
-                setactive(-1);
-                time_left = -1;
-            } else {
-                time_left = PLAYTIME - played;
-            }
-        }
-        int sent = 1;
-
-        unsigned char *b = buf;
-        // [0] msgtype
-        *(b++) = 110;
-
-        uint8_t client_count = clients.size();
-        if (cl->active) {
-            client_count |= 128;
-        }
-        // [1] # of connected clients. 128 bit set if client is active player.
-        *(b++) = client_count;
-
-        // [2-5] time left, in seconds. -1 if no player.
-        memcpy(b, &time_left, sizeof(time_left));
-        b += sizeof(time_left);
-
-        // [6-7] game dimensions
-        *(b++) = gps->dimx;
-        *(b++) = gps->dimy;
-
-        unsigned char *emptyb = b;
-        unsigned char *mod = cl->mod;
-
-        do
-        {
-        //int tile = 0;
-        for (int y = 0; y < gps->dimy; y++)
-        {
-            for (int x = 0; x < gps->dimx; x++)
-            {
-                const int tile = x * gps->dimy + y;
-                unsigned char *s = sc + tile*4;
-                if (mod[tile])
-                    continue;
-
-                *(b++) = x;
-                *(b++) = y;
-                *(b++) = s[0];
-                *(b++) = s[2];
-
-                int bold = (s[3] != 0) * 8;
-                int fg   = (s[1] + bold) % 16;
-
-                *(b++) = fg;
-                mod[tile] = 1;
-            }
-        }
-
-        if (b == emptyb)
-        {
-            nopoll_conn_send_binary (conn, "\0", 1);
-            //tthread::this_thread::sleep_for(tthread::chrono::milliseconds(1000/60));
-        }
-        else
-        {
-            sent = 1;
-            nopoll_conn_send_binary (conn, (const char*)buf, (int)(b-buf));
-        }
-        } while (!sent);
+        tock(conn, idx);
     }
 
     nopoll_msg_unref(msg);
@@ -1388,7 +1380,6 @@ nopoll_bool listener_on_accept (noPollCtx * ctx, noPollConn * conn, noPollPtr us
 
     Client *cl = new Client;
     cl->conn = conn;
-    cl->active = false;
 
     nopoll_conn_set_on_msg(conn, listener_on_message, cl);
     nopoll_conn_set_on_close(conn, listener_on_close, cl);
@@ -1418,6 +1409,7 @@ void wsthreadmain(void *dummy)
     //nopoll_ctx_set_on_msg (ctx, listener_on_message, NULL);
     nopoll_ctx_set_on_accept (ctx, listener_on_accept, NULL);
 
+    *out2 << "Web Fortress is ready.\n";
     // now call to wait for the loop to notify events
     nopoll_loop_wait (ctx, 0);
 }

@@ -44,15 +44,12 @@ function setStatus(text, color, onclick) {
 	}
 	st.style.backgroundColor = color;
 }
-
 function connect() {
 	setStatus('Connecting...', 'orange');
 	websocket = new WebSocket(wsUri);
 	websocket.binaryType = 'arraybuffer';
-
-	websocket.onopen = onOpen;
+	websocket.onopen  = onOpen;
 	websocket.onclose = onClose;
-	websocket.onmessage = onMessage;
 	websocket.onerror = onError;
 }
 
@@ -77,6 +74,7 @@ function onOpen(evt) {
 	websocket.send(new Uint8Array([115]));
 
 	websocket.send(new Uint8Array([110]));
+	websocket.onmessage = onMessage;
 }
 
 function onClose(evt) {
@@ -151,7 +149,7 @@ function onMessage(evt) {
 			(data[3]<<8) |
 			(data[4]<<16) |
 			(data[5]<<24);
-		console.log(timeLeft);
+		console.log(isActive, players, timeLeft);
 		renderQueueStatus(isActive, players, timeLeft);
 
 
@@ -170,7 +168,7 @@ function onMessage(evt) {
 		stats.end();
 	}
 	else if (data[0] == 116) {
-		spectator= (data[1]==1 ? true : false);
+		spectator = (data[1]==1 ? true : false);
 	}
 	setTimeout(function() {
 		websocket.send(new Uint8Array([110]));
