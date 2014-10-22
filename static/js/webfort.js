@@ -13,12 +13,35 @@ if (document.location.hash) {
 var wsUri = 'ws://' + host + ':1234/';
 var active = false;
 
+// Converts integer value in seconds to a time string, HH:MM:SS
+function toTime(n) {
+	var h = Math.floor(n / 60  / 60);
+	var m = Math.floor(n / 60) % 60;
+	var s = n % 60;
+	return ("0" + h).slice(-2) + ":" +
+	       ("0" + m).slice(-2) + ":" +
+	       ("0" + s).slice(-2);
+}
+
+function setStats(userCount, timeLeft) {
+	var u = document.getElementById('user-count');
+	var t = document.getElementById('time-left');
+	u.innerHTML = String(userCount) + " <i class='fa fa-users'></i>";
+
+	if (timeLeft === -1) {
+		t.innerHTML = "";
+	} else {
+		t.innerHTML = toTime(timeLeft)  + " <i class='fa fa-clock-o'></i>";
+	}
+}
+
 function setStatus(text, color, onclick) {
-	var st = document.getElementById('status');
+	var m = document.getElementById('message');
+	m.innerHTML = text;
+	var st = m.parentNode;
 	if (onclick) {
 		st.addEventListener('click', onclick);
 	}
-	st.innerHTML = text;
 	st.style.backgroundColor = color;
 }
 
@@ -67,12 +90,13 @@ function requestTurn() {
 function renderQueueStatus(isActive, players, timeLeft) {
 	if (isActive) {
 		active = true;
-		setStatus("You're in charge now!", 'green');
+		setStatus("You're in charge now! Click here to end your turn.", 'green', requestTurn);
 	} else if (timeLeft === -1) {
 		setStatus("Nobody is playing right now. Click here to ask for a turn.", 'grey', requestTurn);
 	} else {
-		setStatus("Somebody else is playing right now." + timeLeft, 'orange');
+		setStatus("Somebody else is playing right now. Please wait warmly.", 'orange');
 	}
+	setStats(players, timeLeft);
 }
 
 function renderUpdate(ctx, data) {

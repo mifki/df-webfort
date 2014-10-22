@@ -1272,7 +1272,9 @@ void listener_on_message (noPollCtx * ctx, noPollConn * conn, noPollMsg * msg, n
     }
     else if (mdata[0] == 116) // requestTurn
     {
-        if (activeidx == -1) {
+        if (activeidx == idx) {
+            setactive(-1);
+        } else if (activeidx == -1) {
             setactive(idx);
         }
     }
