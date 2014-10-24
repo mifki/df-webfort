@@ -3,24 +3,46 @@
 <head>
   <meta charset="utf-8" />
   <title>Web Fortress</title>
+  <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
   <style>
 .webfort-body {
-  font-size: 14px;
   margin: 0;
   background-color: rgb(32,39,49);
   overflow: hidden;
 }
-#status {
-  height: 20px;
-  line-height: 20px;
+
+.status {
+  height: 24px;
+  line-height: 24px;
   background-color: orange;
   color: white;
+  font-family: Verdana;
+  cursor: pointer;
+}
+
+#message {
+  float: left;
+  width: 70%;
   text-align: center;
 }
+
+#user-count {
+  float: left;
+  width: 15%;
+  text-align: left;
+}
+
+#time-left {
+  float: left;
+  width: 15%;
+  text-align: right;
+}
+
 #webchat {
   width: 100%;
   height: 100%;
 }
+
 .col {
   position: relative;
   min-height: 1px;
@@ -40,6 +62,7 @@
 .col-left {
   width: 75%;
 }
+
 .col-left:before {
   content: "";
   float: left;
@@ -54,10 +77,11 @@
    */
   padding-bottom: 62.5%;
 }
+
 .col-left:after {
   content: "";
   display: table;
-  clear:both;
+  clear: both;
 }
 
 canvas {
@@ -65,18 +89,17 @@ canvas {
   height: 100%;
 }
 
-canvas:before
-
-.test {
-  background-color: #00FF00;
-}
   </style>
   <script src="/js/stats.min.js"></script>
 </head>
 
 <body class="webfort-body">
   <div id="game-container" class="col col-left">
-    <div id="status" style="">Loading...</div>
+    <div class="status">
+      <div id="user-count"> 0 <i class="fa fa-users"></i> </div>
+      <div id="message"> Loading... </div>
+      <div id="time-left"> 0:00 <i class="fa fa-clock-o"> </i> </div>
+    </div>
     <canvas id="myCanvas" width="1280" height="800"></canvas>
   </div>
 
