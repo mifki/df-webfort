@@ -609,16 +609,6 @@ void render(df::renderer *r)
         enabler->renderer->grid_resize(newwidth,newheight);
         needsresize = false;
     }
-    /*if (shownextturn)
-    {
-        df::popup_message *popup = new df::popup_message();
-        popup->text = "Next player, unpause to continue.";
-        popup->color = 1;
-        popup->bright = 0;
-        world->status.popups.push_back(popup);
-
-        shownextturn = false;
-    }*/
 
     render_old_x(r);
 }
@@ -1141,7 +1131,6 @@ void setactive(int newidx)
 
     activeidx = newidx;
 
-
     if (activeidx != -1) {
         Client *newcl = clients[activeidx];
 
@@ -1149,8 +1138,7 @@ void setactive(int newidx)
         memset(newcl->mod, 0, sizeof(newcl->mod));
     }
 
-    if (!(*df::global::pause_state))
-    {
+    if (!(*df::global::pause_state)) {
         simkey(1, 0, SDL::K_SPACE, ' ');
         simkey(0, 0, SDL::K_SPACE, ' ');
     }
@@ -1198,7 +1186,6 @@ void tock(noPollConn* conn, int idx)
     unsigned char *emptyb = b;
     unsigned char *mod = cl->mod;
 
-        //int tile = 0;
     for (int y = 0; y < gps->dimy; y++)
     {
         for (int x = 0; x < gps->dimx; x++)
@@ -1224,9 +1211,8 @@ void tock(noPollConn* conn, int idx)
     nopoll_conn_send_binary (conn, (const char*)buf, (int)(b-buf));
 }
 
-void listener_on_message (noPollCtx * ctx, noPollConn * conn, noPollMsg * msg, noPollPtr user_data)
+int getClientIndex(Client* cl)
 {
-    Client *cl = (Client*) user_data;
     int idx = -1;
     for (int i = 0; i < clients.size(); i++)
     {
@@ -1236,6 +1222,13 @@ void listener_on_message (noPollCtx * ctx, noPollConn * conn, noPollMsg * msg, n
             break;
         }
     }
+    return idx;
+}
+
+void listener_on_message (noPollCtx * ctx, noPollConn * conn, noPollMsg * msg, noPollPtr user_data)
+{
+    Client *cl = (Client*) nopoll_conn_get_hook(conn);
+    int idx = getClientIndex(cl);
 
     const unsigned char *mdata = (const unsigned char*) nopoll_msg_get_payload(msg);
     int msz = nopoll_msg_get_payload_size(msg);
@@ -1354,7 +1347,7 @@ void listener_on_message (noPollCtx * ctx, noPollConn * conn, noPollMsg * msg, n
 
 void listener_on_close (noPollCtx * ctx, noPollConn * conn, noPollPtr user_data)
 {
-    Client *cl = (Client*) user_data;
+    Client *cl = (Client*) nopoll_conn_get_hook(conn);
     for (int i = 0; i < clients.size(); i++)
     {
         if (clients[i] == cl)
@@ -1380,9 +1373,10 @@ nopoll_bool listener_on_accept (noPollCtx * ctx, noPollConn * conn, noPollPtr us
 
     Client *cl = new Client;
     cl->conn = conn;
+    nopoll_conn_set_hook(conn, cl);
 
-    nopoll_conn_set_on_msg(conn, listener_on_message, cl);
-    nopoll_conn_set_on_close(conn, listener_on_close, cl);
+    nopoll_conn_set_on_msg(conn, listener_on_message, NULL);
+    nopoll_conn_set_on_close(conn, listener_on_close, NULL);
 
     clients.push_back(cl);
 
@@ -1396,20 +1390,23 @@ void wsthreadmain(void *dummy)
     noPollCtx *ctx = nopoll_ctx_new ();
     if (!ctx)
     {
-        // error some handling code here
+        *out2 << "Error: Web Fortress failed to load new context.\n";
+        goto error;
     }
 
     // create a listener to receive connections on port 1234
     noPollConn *listener = nopoll_listener_new (ctx, "0.0.0.0", "1234");
     if (!nopoll_conn_is_ok(listener)) {
-         // some error handling here
+        *out2 << "Error: Web Fortress failed to open socket."
+            " Is another instance running?\n";
+        goto error;
     }
 
     // now set a handler that will be called when a message (fragment or not) is received
-    //nopoll_ctx_set_on_msg (ctx, listener_on_message, NULL);
     nopoll_ctx_set_on_accept (ctx, listener_on_accept, NULL);
 
     *out2 << "Web Fortress is ready.\n";
     // now call to wait for the loop to notify events
     nopoll_loop_wait (ctx, 0);
+error:
 }
