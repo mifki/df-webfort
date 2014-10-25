@@ -4,12 +4,22 @@ var colors = [32, 39, 49, 0, 106, 255, 68, 184, 57, 114, 156, 251, 212, 54, 85,
 	232
 ];
 
-var host;
-if (document.location.hash) {
-	host = document.location.hash.substr(1);
-} else {
-	host = document.location.hostname;
+function getJsonFromUrl() {
+	var query = location.search.substr(1);
+	var result = {};
+	query.split("&").forEach(function(part) {
+		var item = part.split("=");
+		result[item[0]] = decodeURIComponent(item[1]);
+	});
+	return result;
 }
+
+var params = getJsonFromUrl();
+console.log(JSON.stringify(params, null, 4));
+
+var host = params.host || document.location.hostname;
+var tileSet = params.tiles || "Spacefox_16x16.png";
+var textSet = params.text  || "ShizzleClean.png";
 var wsUri = 'ws://' + host + ':1234/';
 var active = false;
 
@@ -149,7 +159,7 @@ function onMessage(evt) {
 			(data[3]<<8) |
 			(data[4]<<16) |
 			(data[5]<<24);
-		console.log(isActive, players, timeLeft);
+		//console.log(isActive, players, timeLeft);
 		renderQueueStatus(isActive, players, timeLeft);
 
 
@@ -231,13 +241,17 @@ stats.domElement.style.position = "absolute";
 stats.domElement.style.bottom = "0";
 stats.domElement.style.left   = "0";
 
+function getFolder(path) {
+	return path.substring(0, path.lastIndexOf('/') + 1);
+}
+
 var l1 = false;
 var ts = document.createElement('img');
-ts.src = 'Spacefox_16x16.png';
+ts.src = getFolder(window.location.pathname) + "art/" + tileSet;
 
 var l2 = false;
 var tt = document.createElement('img');
-tt.src = 'ShizzleClean.png';
+tt.src = getFolder(window.location.pathname) + "art/" + textSet;
 
 var cd, ct;
 
