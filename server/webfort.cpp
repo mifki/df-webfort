@@ -73,6 +73,8 @@ extern int SDL_PushEvent( SDL::Event* event );
 
 #define PLAYTIME 60*10
 #define IDLETIME 60*3
+#define LISTENER "0.0.0.0"
+#define PORT "443"
 
 typedef float GLfloat;
 typedef unsigned int GLuint;
@@ -962,6 +964,7 @@ IMPLEMENT_VMETHOD_INTERPOSE(traderesize_hook, render);
 
 DFhackCExport command_result plugin_init ( color_ostream &out, vector <PluginCommand> &commands)
 {
+    out << "WB INIT\n" << std::endl;
     auto dflags = init->display.flag;
     if (!dflags.is_set(init_display_flags::USE_GRAPHICS))
     {
@@ -1387,26 +1390,27 @@ nopoll_bool listener_on_accept (noPollCtx * ctx, noPollConn * conn, noPollPtr us
 
 void wsthreadmain(void *dummy)
 {
+    noPollConn* listener;
     noPollCtx *ctx = nopoll_ctx_new ();
     if (!ctx)
     {
         *out2 << "Error: Web Fortress failed to load new context.\n";
-        goto error;
+        return;
     }
 
-    // create a listener to receive connections on port 1234
-    noPollConn *listener = nopoll_listener_new (ctx, "0.0.0.0", "1234");
+    // create a listener to receive connections
+    listener = nopoll_listener_new(ctx, LISTENER, PORT);
     if (!nopoll_conn_is_ok(listener)) {
-        *out2 << "Error: Web Fortress failed to open socket."
-            " Is another instance running?\n";
-        goto error;
+        *out2 << "Error: Web Fortress failed to open socket " << LISTENER << ":" << PORT <<
+            ". Is another instance running?\n";
+        return;
     }
 
     // now set a handler that will be called when a message (fragment or not) is received
     nopoll_ctx_set_on_accept (ctx, listener_on_accept, NULL);
 
-    *out2 << "Web Fortress is ready.\n";
+    *out2 << "Web Fortress is ready on " << LISTENER << ":" << PORT << ".\n";
+    out2->flush();
     // now call to wait for the loop to notify events
     nopoll_loop_wait (ctx, 0);
-error:
 }

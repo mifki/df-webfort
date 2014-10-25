@@ -18,9 +18,10 @@ var params = getJsonFromUrl();
 console.log(JSON.stringify(params, null, 4));
 
 var host = params.host || document.location.hostname;
+var port = params.port || '1234';
 var tileSet = params.tiles || "Spacefox_16x16.png";
 var textSet = params.text  || "ShizzleClean.png";
-var wsUri = 'ws://' + host + ':1234/';
+var wsUri = 'ws://' + host + ':' + port + '/';
 var active = false;
 
 // Converts integer value in seconds to a time string, HH:MM:SS
