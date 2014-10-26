@@ -6,15 +6,19 @@ DH ?= dfhack
 
 NOPOLL_DIR ?= nopoll-0.2.6.b130
 NOPOLL_I ?= $(NOPOLL_DIR)/src
-NOPOLL_L ?= $(NOPOLL_DIR)/src/.libs
+NOPOLL_L ?= $(NOPOLL_DIR)/src/.libs/libnopoll.a
 
-SRC = webfort.cpp $(NOPOLL_L)/libnopoll.a
+LIBUV_DIR ?= libuv-1.0.0-rc2
+LIBUV_I ?= $(LIBUV_DIR)/include
+LIBUV_L ?= $(LIBUV_DIR)/.libs/libuv.a
+
+SRC = server.cpp webfort.cpp $(LIBUV_L) $(NOPOLL_L)
 DEP =
 OUT = dist/dfhack-$(DFHACKREL)/webfort.plug.so
 
 SDL_I = $(shell sdl-config --cflags)
 
-INC = -I"$(DH)/library/include" -I"$(DH)/library/proto" -I"$(DH)/depends/protobuf" -I"$(DH)/depends/tthread" -I$(NOPOLL_I) $(SDL_I)
+INC = -I"$(DH)/library/include" -I"$(DH)/library/proto" -I"$(DH)/depends/protobuf" -I"$(DH)/depends/tthread" -I$(LIBUV_I) -I$(NOPOLL_I) $(SDL_I)
 LIB = -L"$(DH)/build/library" -ldfhack -L"$(DH)/build/depends/tthread" -ldfhack-tinythread -L"/usr/lib/i386-linux-gnu"
 
 CFLAGS = $(INC) -m32 -DLINUX_BUILD -ggdb
