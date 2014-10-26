@@ -1,10 +1,10 @@
-//
-//  webfort.cpp
-//  Web Fortress
-//
-//  Created by Vitaly Pronkin on 14/05/14.
-//  Copyright (c) 2014 mifki. All rights reserved.
-//
+/*
+ * webfort.cpp
+ * Web Fortress
+ *
+ * Created by Vitaly Pronkin on 14/05/14.
+ * Copyright (c) 2014 mifki, ISC license.
+ */
 
 #include <stdint.h>
 #include <iostream>
@@ -81,7 +81,7 @@ extern int SDL_PushEvent( SDL::Event* event );
 #define PLAYTIME 60*10
 #define IDLETIME 60*3
 #define LISTENER "0.0.0.0"
-#define PORT "80"
+#define PORT "1234"
 
 typedef float GLfloat;
 typedef unsigned int GLuint;
@@ -1420,3 +1420,5 @@ void wsthreadmain(void *dummy)
     // now call to wait for the loop to notify events
     nopoll_loop_wait (ctx, 0);
 }
+
+/* vim: set et sw=4 : */

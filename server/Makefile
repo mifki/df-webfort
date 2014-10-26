@@ -8,15 +8,14 @@ NOPOLL_DIR ?= nopoll-0.2.6.b130
 NOPOLL_I ?= $(NOPOLL_DIR)/src
 NOPOLL_L ?= $(NOPOLL_DIR)/src/.libs
 
-SRC = webfort.cpp
+SRC = webfort.cpp $(NOPOLL_L)/libnopoll.a
 DEP =
 OUT = dist/dfhack-$(DFHACKREL)/webfort.plug.so
 
-SDL_L = $(shell sdl-config --libs)
 SDL_I = $(shell sdl-config --cflags)
 
-INC = -I"$(DH)/library/include" -I"$(DH)/library/proto" -I"$(DH)/depends/protobuf" -I"$(DH)/depends/tthread" -I"$(DH)/depends/lua/include" -I$(NOPOLL_I) $(SDL_I)
-LIB = -L"$(DH)/build/library" -ldfhack -L"$(DH)/build/depends/tthread" -ldfhack-tinythread -L"/usr/lib/i386-linux-gnu" $(SDL_L) $(NOPOLL_L)/libnopoll.a
+INC = -I"$(DH)/library/include" -I"$(DH)/library/proto" -I"$(DH)/depends/protobuf" -I"$(DH)/depends/tthread" -I$(NOPOLL_I) $(SDL_I)
+LIB = -L"$(DH)/build/library" -ldfhack -L"$(DH)/build/depends/tthread" -ldfhack-tinythread -L"/usr/lib/i386-linux-gnu"
 
 CFLAGS = $(INC) -m32 -DLINUX_BUILD -ggdb
 LDFLAGS = $(LIB) -shared
