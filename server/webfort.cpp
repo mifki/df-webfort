@@ -1,56 +1,63 @@
-// vim et sw=4 sts=4
-//
-//  webfort.cpp
-//  Web Fortress
-//
-//  Created by Vitaly Pronkin on 14/05/14.
-//  Copyright (c) 2014 mifki. All rights reserved.
-//
+/*
+ * webfort.cpp
+ * Web Fortress
+ *
+ * Created by Vitaly Pronkin on 14/05/14.
+ * Copyright (c) 2014 mifki, ISC license.
+ */
 
 #include <stdint.h>
 #include <iostream>
 #include <map>
 #include <vector>
-#include "Core.h"
-#include "Console.h"
-#include "Export.h"
+
+/*
+ * DFHack Includes
+ * The includes that were commented out were done simply by a process of
+ * "does this break the build? if not, comment it out." They might be
+ * transitively included, but commenting them out speeds things up anyways.
+ */
+
+// #include "Core.h"
+// #include "Console.h"
+// #include "Export.h"
 #include "PluginManager.h"
-#include "VTableInterpose.h"
-#include "modules/Maps.h"
-#include "modules/World.h"
+// #include "VTableInterpose.h"
+// #include "modules/Maps.h"
+// #include "modules/World.h"
 #include "modules/MapCache.h"
 #include "modules/Gui.h"
-#include "modules/Screen.h"
-#include "modules/Buildings.h"
-#include "MemAccess.h"
-#include "VersionInfo.h"
-#include "df/construction.h"
-#include "df/block_square_event_frozen_liquidst.h"
+// #include "modules/Screen.h"
+// #include "modules/Buildings.h"
+// #include "MemAccess.h"
+// #include "VersionInfo.h"
+// #include "df/construction.h"
+// #include "df/block_square_event_frozen_liquidst.h"
 #include "df/graphic.h"
 #include "df/enabler.h"
 #include "df/renderer.h"
 #include "df/building.h"
-#include "df/building_type.h"
+// #include "df/building_type.h"
 #include "df/buildings_other_id.h"
-#include "df/item.h"
-#include "df/item_type.h"
+// #include "df/item.h"
+// #include "df/item_type.h"
 #include "df/items_other_id.h"
-#include "df/tiletype.h"
+// #include "df/tiletype.h"
 #include "df/viewscreen_dwarfmodest.h"
 #include "df/viewscreen_setupadventurest.h"
 #include "df/viewscreen_dungeonmodest.h"
 #include "df/viewscreen_choose_start_sitest.h"
 #include "df/viewscreen_new_regionst.h"
 #include "df/viewscreen_layer_export_play_mapst.h"
-#include "df/viewscreen_layer_world_gen_paramst.h"
+// #include "df/viewscreen_layer_world_gen_paramst.h"
 #include "df/viewscreen_overallstatusst.h"
-#include "df/viewscreen_tradegoodsst.h"
-#include "df/viewscreen_petst.h"
+// #include "df/viewscreen_tradegoodsst.h"
+// #include "df/viewscreen_petst.h"
 #include "df/viewscreen_movieplayerst.h"
-#include "df/ui_sidebar_mode.h"
-#include "df/init.h"
-#include "df/init_display.h"
-#include "df/init_display_flags.h"
+// #include "df/ui_sidebar_mode.h"
+// #include "df/init.h"
+// #include "df/init_display.h"
+// #include "df/init_display_flags.h"
 
 #ifdef WIN32
     #define WIN32_LEAN_AND_MEAN
@@ -73,6 +80,8 @@ extern int SDL_PushEvent( SDL::Event* event );
 
 #define PLAYTIME 60*10
 #define IDLETIME 60*3
+#define LISTENER "0.0.0.0"
+#define PORT "1234"
 
 typedef float GLfloat;
 typedef unsigned int GLuint;
@@ -609,16 +618,6 @@ void render(df::renderer *r)
         enabler->renderer->grid_resize(newwidth,newheight);
         needsresize = false;
     }
-    /*if (shownextturn)
-    {
-        df::popup_message *popup = new df::popup_message();
-        popup->text = "Next player, unpause to continue.";
-        popup->color = 1;
-        popup->bright = 0;
-        world->status.popups.push_back(popup);
-
-        shownextturn = false;
-    }*/
 
     render_old_x(r);
 }
@@ -1141,7 +1140,6 @@ void setactive(int newidx)
 
     activeidx = newidx;
 
-
     if (activeidx != -1) {
         Client *newcl = clients[activeidx];
 
@@ -1149,8 +1147,7 @@ void setactive(int newidx)
         memset(newcl->mod, 0, sizeof(newcl->mod));
     }
 
-    if (!(*df::global::pause_state))
-    {
+    if (!(*df::global::pause_state)) {
         simkey(1, 0, SDL::K_SPACE, ' ');
         simkey(0, 0, SDL::K_SPACE, ' ');
     }
@@ -1198,7 +1195,6 @@ void tock(noPollConn* conn, int idx)
     unsigned char *emptyb = b;
     unsigned char *mod = cl->mod;
 
-        //int tile = 0;
     for (int y = 0; y < gps->dimy; y++)
     {
         for (int x = 0; x < gps->dimx; x++)
@@ -1224,9 +1220,8 @@ void tock(noPollConn* conn, int idx)
     nopoll_conn_send_binary (conn, (const char*)buf, (int)(b-buf));
 }
 
-void listener_on_message (noPollCtx * ctx, noPollConn * conn, noPollMsg * msg, noPollPtr user_data)
+int getClientIndex(Client* cl)
 {
-    Client *cl = (Client*) user_data;
     int idx = -1;
     for (int i = 0; i < clients.size(); i++)
     {
@@ -1236,6 +1231,13 @@ void listener_on_message (noPollCtx * ctx, noPollConn * conn, noPollMsg * msg, n
             break;
         }
     }
+    return idx;
+}
+
+void listener_on_message (noPollCtx * ctx, noPollConn * conn, noPollMsg * msg, noPollPtr user_data)
+{
+    Client *cl = (Client*) nopoll_conn_get_hook(conn);
+    int idx = getClientIndex(cl);
 
     const unsigned char *mdata = (const unsigned char*) nopoll_msg_get_payload(msg);
     int msz = nopoll_msg_get_payload_size(msg);
@@ -1354,7 +1356,7 @@ void listener_on_message (noPollCtx * ctx, noPollConn * conn, noPollMsg * msg, n
 
 void listener_on_close (noPollCtx * ctx, noPollConn * conn, noPollPtr user_data)
 {
-    Client *cl = (Client*) user_data;
+    Client *cl = (Client*) nopoll_conn_get_hook(conn);
     for (int i = 0; i < clients.size(); i++)
     {
         if (clients[i] == cl)
@@ -1380,9 +1382,10 @@ nopoll_bool listener_on_accept (noPollCtx * ctx, noPollConn * conn, noPollPtr us
 
     Client *cl = new Client;
     cl->conn = conn;
+    nopoll_conn_set_hook(conn, cl);
 
-    nopoll_conn_set_on_msg(conn, listener_on_message, cl);
-    nopoll_conn_set_on_close(conn, listener_on_close, cl);
+    nopoll_conn_set_on_msg(conn, listener_on_message, NULL);
+    nopoll_conn_set_on_close(conn, listener_on_close, NULL);
 
     clients.push_back(cl);
 
@@ -1393,23 +1396,29 @@ nopoll_bool listener_on_accept (noPollCtx * ctx, noPollConn * conn, noPollPtr us
 
 void wsthreadmain(void *dummy)
 {
+    noPollConn* listener;
     noPollCtx *ctx = nopoll_ctx_new ();
     if (!ctx)
     {
-        // error some handling code here
+        *out2 << "Error: Web Fortress failed to load new context.\n";
+        return;
     }
 
-    // create a listener to receive connections on port 1234
-    noPollConn *listener = nopoll_listener_new (ctx, "0.0.0.0", "1234");
+    // create a listener to receive connections
+    listener = nopoll_listener_new(ctx, LISTENER, PORT);
     if (!nopoll_conn_is_ok(listener)) {
-         // some error handling here
+        *out2 << "Error: Web Fortress failed to open socket " << LISTENER << ":" << PORT <<
+            ". Is another instance running?\n";
+        return;
     }
 
     // now set a handler that will be called when a message (fragment or not) is received
-    //nopoll_ctx_set_on_msg (ctx, listener_on_message, NULL);
     nopoll_ctx_set_on_accept (ctx, listener_on_accept, NULL);
 
-    *out2 << "Web Fortress is ready.\n";
+    *out2 << "Web Fortress is ready on " << LISTENER << ":" << PORT << ".\n";
+    out2->flush();
     // now call to wait for the loop to notify events
     nopoll_loop_wait (ctx, 0);
 }
+
+/* vim: set et sw=4 : */

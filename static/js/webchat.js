@@ -9,3 +9,9 @@ window.onload = function() {
 	frame.setAttribute('src', iframeURL);
 	document.getElementById('webchat-container').appendChild(frame);
 }
+
+function elem_id(id) { return document.getElementById(id) }
+if (params.hide_chat) {
+	elem_id("game-container").classList.add("hide-chat");
+	elem_id("webchat-container").classList.add("hide-chat");
+}

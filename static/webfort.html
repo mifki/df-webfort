@@ -4,108 +4,22 @@
   <meta charset="utf-8" />
   <title>Web Fortress</title>
   <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
-  <style>
-.webfort-body {
-  margin: 0;
-  background-color: rgb(32,39,49);
-  overflow: hidden;
-}
-
-.status {
-  height: 24px;
-  line-height: 24px;
-  background-color: orange;
-  color: white;
-  font-family: Verdana;
-  cursor: pointer;
-}
-
-#message {
-  float: left;
-  width: 70%;
-  text-align: center;
-}
-
-#user-count {
-  float: left;
-  width: 15%;
-  text-align: left;
-}
-
-#time-left {
-  float: left;
-  width: 15%;
-  text-align: right;
-}
-
-#webchat {
-  width: 100%;
-  height: 100%;
-}
-
-.col {
-  position: relative;
-  min-height: 1px;
-  float: left;
-  margin-left:  0; margin-right:  0;
-  padding-left: 0; padding-right: 0;
-}
-
-.col.col-right {
-  position: absolute;
-  top: 0;
-  right: 0;
-  height: 100%;
-  width: 25%;
-}
-
-.col-left {
-  width: 75%;
-}
-
-.col-left:before {
-  content: "";
-  float: left;
-  /*
-   * Options include
-   * 80x60 == 4:3   == 1/0.75
-   * 80x50 == 16:10 == 1/0.625
-   * 80x45 == 16:9  == 1/0.5625
-   * 80x40 == 2:1   == 1/0.5
-   * 80x34 == 21:9~ == 1/0.425
-   * 80x25 == 16:5  == 1/0.3125 (minimum)
-   */
-  padding-bottom: 62.5%;
-}
-
-.col-left:after {
-  content: "";
-  display: table;
-  clear: both;
-}
-
-canvas {
-  width:  100%;
-  height: 100%;
-}
-
-  </style>
-  <script src="/js/stats.min.js"></script>
+  <link href="webfort.css" rel="stylesheet">
 </head>
 
-<body class="webfort-body">
+<body>
   <div id="game-container" class="col col-left">
     <div class="status">
-      <div id="user-count"> 0 <i class="fa fa-users"></i> </div>
+      <div id="user-count"> - <i class="fa fa-users"></i> </div>
       <div id="message"> Loading... </div>
-      <div id="time-left"> 0:00 <i class="fa fa-clock-o"> </i> </div>
+      <div id="time-left"> -:-- <i class="fa fa-clock-o"> </i> </div>
     </div>
     <canvas id="myCanvas" width="1280" height="800"></canvas>
   </div>
 
-  <div id="webchat-container" class="col col-right">
-  </div>
-  <script src="/js/webfort.js"></script>
-  <script src="/js/webchat.js"></script>
+  <div id="webchat-container" class="col col-right"></div>
+  <script src="js/stats.min.js"></script>
+  <script src="js/webfort.js"></script>
+  <script src="js/webchat.js"></script>
 </body>
 </html>
