@@ -27,7 +27,7 @@ ifeq ($(shell uname -s), Darwin)
 	LDFLAGS += -framework OpenGL -lcrypto -lssl -mmacosx-version-min=10.6
 else
 	CXX = clang++ -std=gnu++0x
-	CFLAGS += -fdiagnostics-color=auto
+	CFLAGS += -fdiagnostics-color=auto -Wno-tautological-compare
 	LDFLAGS += -lcrypto -lssl
 endif
 
@@ -36,7 +36,6 @@ all: $(OUT)
 
 $(OUT): $(SRC) $(DEP)
 	-@mkdir -p `dirname $(OUT)`
-	pwd
 	$(CXX) $(SRC) -o $(OUT) -DDFHACK_VERSION=\"$(DFHACKVER)-$(DFHACKREL)\" $(CFLAGS) $(LDFLAGS)
 
 install: $(OUT)

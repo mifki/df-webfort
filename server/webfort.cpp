@@ -1,4 +1,3 @@
-// vim et sw=4 sts=4
 //
 //  webfort.cpp
 //  Web Fortress
@@ -11,46 +10,54 @@
 #include <iostream>
 #include <map>
 #include <vector>
-#include "Core.h"
-#include "Console.h"
-#include "Export.h"
+
+/*
+ * DFHack Includes
+ * The includes that were commented out were done simply by a process of
+ * "does this break the build? if not, comment it out." They might be
+ * transitively included, but commenting them out speeds things up anyways.
+ */
+
+// #include "Core.h"
+// #include "Console.h"
+// #include "Export.h"
 #include "PluginManager.h"
-#include "VTableInterpose.h"
-#include "modules/Maps.h"
-#include "modules/World.h"
+// #include "VTableInterpose.h"
+// #include "modules/Maps.h"
+// #include "modules/World.h"
 #include "modules/MapCache.h"
 #include "modules/Gui.h"
-#include "modules/Screen.h"
-#include "modules/Buildings.h"
-#include "MemAccess.h"
-#include "VersionInfo.h"
-#include "df/construction.h"
-#include "df/block_square_event_frozen_liquidst.h"
+// #include "modules/Screen.h"
+// #include "modules/Buildings.h"
+// #include "MemAccess.h"
+// #include "VersionInfo.h"
+// #include "df/construction.h"
+// #include "df/block_square_event_frozen_liquidst.h"
 #include "df/graphic.h"
 #include "df/enabler.h"
 #include "df/renderer.h"
 #include "df/building.h"
-#include "df/building_type.h"
+// #include "df/building_type.h"
 #include "df/buildings_other_id.h"
-#include "df/item.h"
-#include "df/item_type.h"
+// #include "df/item.h"
+// #include "df/item_type.h"
 #include "df/items_other_id.h"
-#include "df/tiletype.h"
+// #include "df/tiletype.h"
 #include "df/viewscreen_dwarfmodest.h"
 #include "df/viewscreen_setupadventurest.h"
 #include "df/viewscreen_dungeonmodest.h"
 #include "df/viewscreen_choose_start_sitest.h"
 #include "df/viewscreen_new_regionst.h"
 #include "df/viewscreen_layer_export_play_mapst.h"
-#include "df/viewscreen_layer_world_gen_paramst.h"
+// #include "df/viewscreen_layer_world_gen_paramst.h"
 #include "df/viewscreen_overallstatusst.h"
-#include "df/viewscreen_tradegoodsst.h"
-#include "df/viewscreen_petst.h"
+// #include "df/viewscreen_tradegoodsst.h"
+// #include "df/viewscreen_petst.h"
 #include "df/viewscreen_movieplayerst.h"
-#include "df/ui_sidebar_mode.h"
-#include "df/init.h"
-#include "df/init_display.h"
-#include "df/init_display_flags.h"
+// #include "df/ui_sidebar_mode.h"
+// #include "df/init.h"
+// #include "df/init_display.h"
+// #include "df/init_display_flags.h"
 
 #ifdef WIN32
     #define WIN32_LEAN_AND_MEAN
@@ -74,7 +81,7 @@ extern int SDL_PushEvent( SDL::Event* event );
 #define PLAYTIME 60*10
 #define IDLETIME 60*3
 #define LISTENER "0.0.0.0"
-#define PORT "443"
+#define PORT "80"
 
 typedef float GLfloat;
 typedef unsigned int GLuint;
@@ -964,7 +971,6 @@ IMPLEMENT_VMETHOD_INTERPOSE(traderesize_hook, render);
 
 DFhackCExport command_result plugin_init ( color_ostream &out, vector <PluginCommand> &commands)
 {
-    out << "WB INIT\n" << std::endl;
     auto dflags = init->display.flag;
     if (!dflags.is_set(init_display_flags::USE_GRAPHICS))
     {
