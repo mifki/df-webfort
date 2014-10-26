@@ -1,3 +1,8 @@
+/*
+ * Webfort.js
+ * Copyright (c) 2014 mifki, ISC license.
+ */
+
 var colors = [32, 39, 49, 0, 106, 255, 68, 184, 57, 114, 156, 251, 212, 54, 85,
 	176, 50, 255, 217, 118, 65, 170, 196, 178, 128, 151, 156, 48, 165, 255, 144,
 	255, 79, 168, 212, 255, 255, 82, 82, 255, 107, 255, 255, 232, 102, 255, 250,
@@ -9,7 +14,12 @@ function getJsonFromUrl() {
 	var result = {};
 	query.split("&").forEach(function(part) {
 		var item = part.split("=");
-		result[item[0]] = decodeURIComponent(item[1]);
+		var key = item[0].replace('-', '_');
+		var val = decodeURIComponent(item[1]);
+		if (val === "false") {
+			val = false;
+		}
+		result[key] = val;
 	});
 	return result;
 }
@@ -236,11 +246,14 @@ function init() {
 	connect();
 }
 
-var stats = new Stats();
-document.body.appendChild(stats.domElement);
-stats.domElement.style.position = "absolute";
-stats.domElement.style.bottom = "0";
-stats.domElement.style.left   = "0";
+var stats;
+if (params.show_fps) {
+	stats = new Stats();
+	document.body.appendChild(stats.domElement);
+	stats.domElement.style.position = "absolute";
+	stats.domElement.style.bottom = "0";
+	stats.domElement.style.left   = "0";
+}
 
 function getFolder(path) {
 	return path.substring(0, path.lastIndexOf('/') + 1);
