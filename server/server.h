@@ -8,6 +8,7 @@
  * Copyright (c) 2014 mifki, ISC license.
  */
 
+#include <ctime>
 #include <vector>
 
 typedef struct {

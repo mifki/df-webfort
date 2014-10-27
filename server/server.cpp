@@ -5,8 +5,11 @@
  * Copyright (c) 2014 mifki, ISC license.
  */
 
-#include "nopoll.h"
 #include "server.h"
+
+#include <uv.h>
+#include <wslay/wslay.h>
+#include "uvwslay/uvwslay.h"
 
 #include "ColorText.h"
 #include "modules/Gui.h"
@@ -23,14 +26,15 @@ using df::global::gps;
 
 #define PLAYTIME 60*10
 #define IDLETIME 60*3
-#define LISTENER "0.0.0.0"
-#define PORT "1234"
+#define HOST "0.0.0.0"
+#define PORT 1234
 
 std::vector<Client*> clients;
 
 static int activeidx = -1;
 static DFHack::color_ostream *out2;
 static unsigned char buf[64*1024];
+static uv_loop_t* loop;
 
 static SDL::Key mapInputCodeToSDL( const uint32_t code )
 {
@@ -111,295 +115,298 @@ void simkey(int down, int mod, SDL::Key sym, int unicode)
     SDL_PushEvent(&event);
 }
 
-void setactive(int newidx)
+// void setactive(int newidx)
+// {
+//     if (newidx >= clients.size()) {
+//         newidx = -1;
+//     }
+// 
+//     activeidx = newidx;
+// 
+//     if (activeidx != -1) {
+//         Client *newcl = clients[activeidx];
+// 
+//         newcl->atime = newcl->itime = time(NULL);
+//         memset(newcl->mod, 0, sizeof(newcl->mod));
+//     }
+// 
+//     if (!(*df::global::pause_state)) {
+//         simkey(1, 0, SDL::K_SPACE, ' ');
+//         simkey(0, 0, SDL::K_SPACE, ' ');
+//     }
+//     const char* host = nopoll_conn_host((noPollConn*)clients[activeidx]->hook);
+//     *out2 << "active " << activeidx << " " << (activeidx == -1 ? "-" : host) << std::endl;
+// }
+// 
+// void tock(noPollConn* conn, int idx)
+// {
+//     // Tock
+//     Client* cl = clients[idx];
+//     int32_t time_left = -1;
+//     if (activeidx != -1 && clients.size() > 1)
+//     {
+//         time_t now = time(NULL);
+//         int played = now - clients[activeidx]->atime;
+//         int idle = now - clients[activeidx]->itime;
+//         if (played >= PLAYTIME || idle >= IDLETIME) {
+//             setactive(-1);
+//             time_left = -1;
+//         } else {
+//             time_left = PLAYTIME - played;
+//         }
+//     }
+//     int sent = 1;
+// 
+//     unsigned char *b = buf;
+//     // [0] msgtype
+//     *(b++) = 110;
+// 
+//     uint8_t client_count = clients.size();
+//     if (idx == activeidx) {
+//         client_count |= 128;
+//     }
+//     // [1] # of connected clients. 128 bit set if client is active player.
+//     *(b++) = client_count;
+// 
+//     // [2-5] time left, in seconds. -1 if no player.
+//     memcpy(b, &time_left, sizeof(time_left));
+//     b += sizeof(time_left);
+// 
+//     // [6-7] game dimensions
+//     *(b++) = gps->dimx;
+//     *(b++) = gps->dimy;
+// 
+//     unsigned char *emptyb = b;
+//     unsigned char *mod = cl->mod;
+// 
+//     for (int y = 0; y < gps->dimy; y++)
+//     {
+//         for (int x = 0; x < gps->dimx; x++)
+//         {
+//             const int tile = x * gps->dimy + y;
+//             unsigned char *s = sc + tile*4;
+//             if (mod[tile])
+//                 continue;
+// 
+//             *(b++) = x;
+//             *(b++) = y;
+//             *(b++) = s[0];
+//             *(b++) = s[2];
+// 
+//             int bold = (s[3] != 0) * 8;
+//             int fg   = (s[1] + bold) % 16;
+// 
+//             *(b++) = fg;
+//             mod[tile] = 1;
+//         }
+//     }
+// 
+//     nopoll_conn_send_binary (conn, (const char*)buf, (int)(b-buf));
+// }
+// 
+// int getClientIndex(Client* cl)
+// {
+//     int idx = -1;
+//     for (int i = 0; i < clients.size(); i++)
+//     {
+//         if (clients[i] == cl)
+//         {
+//             idx = i;
+//             break;
+//         }
+//     }
+//     return idx;
+// }
+// 
+// void listener_on_message (noPollCtx * ctx, noPollConn * conn, noPollMsg * msg, noPollPtr user_data)
+// {
+//     Client *cl = (Client*) nopoll_conn_get_hook(conn);
+//     int idx = getClientIndex(cl);
+// 
+//     const unsigned char *mdata = (const unsigned char*) nopoll_msg_get_payload(msg);
+//     int msz = nopoll_msg_get_payload_size(msg);
+// 
+//     if (mdata[0] == 112 && msz == 3) // ResizeEvent
+//     {
+//         if (idx == activeidx)
+//         {
+//             newwidth = mdata[1];
+//             newheight = mdata[2];
+//             needsresize = true;
+//         }
+//     }
+//     else if (mdata[0] == 111 && msz == 4) // KeyEvent
+//     {
+//         if (idx == activeidx)
+//         {
+//             cl->itime = time(NULL);
+// 
+//             SDL::Key k = mdata[2] ? (SDL::Key)mdata[2] : mapInputCodeToSDL(mdata[1]);
+//             if (k != SDL::K_UNKNOWN)
+//             {
+//                 int jsmods = mdata[3];
+//                 int sdlmods = 0;
+// 
+//                 if (jsmods & 1)
+//                 {
+//                     simkey(1, 0, SDL::K_LALT, 0);
+//                     sdlmods |= SDL::KMOD_ALT;
+//                 }
+//                 if (jsmods & 2)
+//                 {
+//                     simkey(1, 0, SDL::K_LSHIFT, 0);
+//                     sdlmods |= SDL::KMOD_SHIFT;
+//                 }
+//                 if (jsmods & 4)
+//                 {
+//                     simkey(1, 0, SDL::K_LCTRL, 0);
+//                     sdlmods |= SDL::KMOD_CTRL;
+//                 }
+// 
+//                 simkey(1, sdlmods, k, mdata[2]);
+//                 simkey(0, sdlmods, k, mdata[2]);
+// 
+//                 if (jsmods & 1)
+//                     simkey(0, 0, SDL::K_LALT, 0);
+//                 if (jsmods & 2)
+//                     simkey(0, 0, SDL::K_LSHIFT, 0);
+//                 if (jsmods & 4)
+//                     simkey(0, 0, SDL::K_LCTRL, 0);
+//             }
+//         }
+//     }
+//     /*else if (mdata[0] == 113)
+//     {
+//         int x = (((unsigned int)mdata[1]<<8) | mdata[2]);
+//         int y = (((unsigned int)mdata[3]<<8) | mdata[4]);
+//         SDL::Event event;
+//             memset( &event, 0, sizeof(event) );
+//             event.type = 4;
+//             event.motion.type = 4;
+//             event.motion.state = 0;
+//             event.motion.x = x;
+//             event.motion.y = y;
+//         SDL_PushEvent( &event );
+// 
+//         gps->mouse_x = x;
+//         gps->mouse_y = y;
+//     }
+//     else if (mdata[0] == 114)
+//     {
+//         SDL::Event event;
+// 
+//         memset( &event, 0, sizeof(event) );
+//         event.type = SDL::ET_MOUSEBUTTONDOWN;
+//         event.button.type = 5;//SDL::SDL_MOUSEBUTTONDOWN;
+//         event.button.which = 0;
+//         event.button.button = 1;
+//         event.button.state = SDL::BTN_PRESSED;
+//         event.button.x = 100;
+//         event.button.y = 100;
+//         SDL_PushEvent( &event );
+// 
+//         memset( &event, 0, sizeof(event) );
+//         event.type = SDL::ET_MOUSEBUTTONUP;
+//         event.button.type = 5;//SDL::SDL_MOUSEBUTTONUP;
+//         event.button.which = 0;
+//         event.button.button = 1;
+//         event.button.state = SDL::BTN_RELEASED;
+//         event.button.x = 100;
+//         event.button.y = 100;
+//         SDL_PushEvent( &event );
+// 
+//         //nopoll_conn_send_binary (conn, "\0\0\0", 3);
+//     }*/
+//     else if (mdata[0] == 115) // ModifierEvent
+//     {
+//         memset(cl->mod, 0, sizeof(cl->mod));
+//     }
+//     else if (mdata[0] == 116) // requestTurn
+//     {
+//         if (activeidx == idx) {
+//             setactive(-1);
+//         } else if (activeidx == -1) {
+//             setactive(idx);
+//         }
+//     }
+//     else
+//     {
+//         tock(conn, idx);
+//     }
+// 
+//     nopoll_msg_unref(msg);
+//     return;
+// }
+// 
+// void listener_on_close (noPollCtx * ctx, noPollConn * conn, noPollPtr user_data)
+// {
+//     Client *cl = (Client*) nopoll_conn_get_hook(conn);
+//     for (int i = 0; i < clients.size(); i++)
+//     {
+//         if (clients[i] == cl)
+//         {
+//             clients.erase(clients.begin()+i);
+//             delete cl;
+// 
+//             if (activeidx == i) {
+//                 setactive(-1);
+//             }
+// 
+//             break;
+//         }
+//     }
+// 
+//     const char* host = nopoll_conn_host((noPollConn*)clients[activeidx]->hook);
+// 
+//     *out2 << "disconnected " << nopoll_conn_host(conn) << " count " << clients.size() << " active " << activeidx << " " << (activeidx == -1 ? "-" : host) << std::endl;
+// }
+// 
+// nopoll_bool listener_on_accept (noPollCtx * ctx, noPollConn * conn, noPollPtr user_data)
+// {
+//     if (clients.size() >= 100)
+//         return false;
+// 
+//     Client *cl = new Client;
+//     cl->hook = (void*) conn;
+//     nopoll_conn_set_hook(conn, cl);
+// 
+//     nopoll_conn_set_on_msg(conn, listener_on_message, NULL);
+//     nopoll_conn_set_on_close(conn, listener_on_close, NULL);
+// 
+//     clients.push_back(cl);
+// 
+//     *out2 << "connected " << nopoll_conn_host(conn) << " count " << clients.size() << std::endl;
+// 
+//     return true;
+// }
+// 
+void msg_conn(struct uvwslay_t *uvwslay, const struct wslay_event_on_msg_recv_arg *arg)
 {
-    if (newidx >= clients.size()) {
-        newidx = -1;
-    }
-
-    activeidx = newidx;
-
-    if (activeidx != -1) {
-        Client *newcl = clients[activeidx];
-
-        newcl->atime = newcl->itime = time(NULL);
-        memset(newcl->mod, 0, sizeof(newcl->mod));
-    }
-
-    if (!(*df::global::pause_state)) {
-        simkey(1, 0, SDL::K_SPACE, ' ');
-        simkey(0, 0, SDL::K_SPACE, ' ');
-    }
-    const char* host = nopoll_conn_host((noPollConn*)clients[activeidx]->hook);
-    *out2 << "active " << activeidx << " " << (activeidx == -1 ? "-" : host) << std::endl;
+    *out2 << "MSG RECV\n";
 }
 
-void tock(noPollConn* conn, int idx)
-{
-    // Tock
-    Client* cl = clients[idx];
-    int32_t time_left = -1;
-    if (activeidx != -1 && clients.size() > 1)
-    {
-        time_t now = time(NULL);
-        int played = now - clients[activeidx]->atime;
-        int idle = now - clients[activeidx]->itime;
-        if (played >= PLAYTIME || idle >= IDLETIME) {
-            setactive(-1);
-            time_left = -1;
-        } else {
-            time_left = PLAYTIME - played;
-        }
-    }
-    int sent = 1;
-
-    unsigned char *b = buf;
-    // [0] msgtype
-    *(b++) = 110;
-
-    uint8_t client_count = clients.size();
-    if (idx == activeidx) {
-        client_count |= 128;
-    }
-    // [1] # of connected clients. 128 bit set if client is active player.
-    *(b++) = client_count;
-
-    // [2-5] time left, in seconds. -1 if no player.
-    memcpy(b, &time_left, sizeof(time_left));
-    b += sizeof(time_left);
-
-    // [6-7] game dimensions
-    *(b++) = gps->dimx;
-    *(b++) = gps->dimy;
-
-    unsigned char *emptyb = b;
-    unsigned char *mod = cl->mod;
-
-    for (int y = 0; y < gps->dimy; y++)
-    {
-        for (int x = 0; x < gps->dimx; x++)
-        {
-            const int tile = x * gps->dimy + y;
-            unsigned char *s = sc + tile*4;
-            if (mod[tile])
-                continue;
-
-            *(b++) = x;
-            *(b++) = y;
-            *(b++) = s[0];
-            *(b++) = s[2];
-
-            int bold = (s[3] != 0) * 8;
-            int fg   = (s[1] + bold) % 16;
-
-            *(b++) = fg;
-            mod[tile] = 1;
-        }
-    }
-
-    nopoll_conn_send_binary (conn, (const char*)buf, (int)(b-buf));
-}
-
-int getClientIndex(Client* cl)
-{
-    int idx = -1;
-    for (int i = 0; i < clients.size(); i++)
-    {
-        if (clients[i] == cl)
-        {
-            idx = i;
-            break;
-        }
-    }
-    return idx;
-}
-
-void listener_on_message (noPollCtx * ctx, noPollConn * conn, noPollMsg * msg, noPollPtr user_data)
-{
-    Client *cl = (Client*) nopoll_conn_get_hook(conn);
-    int idx = getClientIndex(cl);
-
-    const unsigned char *mdata = (const unsigned char*) nopoll_msg_get_payload(msg);
-    int msz = nopoll_msg_get_payload_size(msg);
-
-    if (mdata[0] == 112 && msz == 3) // ResizeEvent
-    {
-        if (idx == activeidx)
-        {
-            newwidth = mdata[1];
-            newheight = mdata[2];
-            needsresize = true;
-        }
-    }
-    else if (mdata[0] == 111 && msz == 4) // KeyEvent
-    {
-        if (idx == activeidx)
-        {
-            cl->itime = time(NULL);
-
-            SDL::Key k = mdata[2] ? (SDL::Key)mdata[2] : mapInputCodeToSDL(mdata[1]);
-            if (k != SDL::K_UNKNOWN)
-            {
-                int jsmods = mdata[3];
-                int sdlmods = 0;
-
-                if (jsmods & 1)
-                {
-                    simkey(1, 0, SDL::K_LALT, 0);
-                    sdlmods |= SDL::KMOD_ALT;
-                }
-                if (jsmods & 2)
-                {
-                    simkey(1, 0, SDL::K_LSHIFT, 0);
-                    sdlmods |= SDL::KMOD_SHIFT;
-                }
-                if (jsmods & 4)
-                {
-                    simkey(1, 0, SDL::K_LCTRL, 0);
-                    sdlmods |= SDL::KMOD_CTRL;
-                }
-
-                simkey(1, sdlmods, k, mdata[2]);
-                simkey(0, sdlmods, k, mdata[2]);
-
-                if (jsmods & 1)
-                    simkey(0, 0, SDL::K_LALT, 0);
-                if (jsmods & 2)
-                    simkey(0, 0, SDL::K_LSHIFT, 0);
-                if (jsmods & 4)
-                    simkey(0, 0, SDL::K_LCTRL, 0);
-            }
-        }
-    }
-    /*else if (mdata[0] == 113)
-    {
-        int x = (((unsigned int)mdata[1]<<8) | mdata[2]);
-        int y = (((unsigned int)mdata[3]<<8) | mdata[4]);
-        SDL::Event event;
-            memset( &event, 0, sizeof(event) );
-            event.type = 4;
-            event.motion.type = 4;
-            event.motion.state = 0;
-            event.motion.x = x;
-            event.motion.y = y;
-        SDL_PushEvent( &event );
-
-        gps->mouse_x = x;
-        gps->mouse_y = y;
-    }
-    else if (mdata[0] == 114)
-    {
-        SDL::Event event;
-
-        memset( &event, 0, sizeof(event) );
-        event.type = SDL::ET_MOUSEBUTTONDOWN;
-        event.button.type = 5;//SDL::SDL_MOUSEBUTTONDOWN;
-        event.button.which = 0;
-        event.button.button = 1;
-        event.button.state = SDL::BTN_PRESSED;
-        event.button.x = 100;
-        event.button.y = 100;
-        SDL_PushEvent( &event );
-
-        memset( &event, 0, sizeof(event) );
-        event.type = SDL::ET_MOUSEBUTTONUP;
-        event.button.type = 5;//SDL::SDL_MOUSEBUTTONUP;
-        event.button.which = 0;
-        event.button.button = 1;
-        event.button.state = SDL::BTN_RELEASED;
-        event.button.x = 100;
-        event.button.y = 100;
-        SDL_PushEvent( &event );
-
-        //nopoll_conn_send_binary (conn, "\0\0\0", 3);
-    }*/
-    else if (mdata[0] == 115) // ModifierEvent
-    {
-        memset(cl->mod, 0, sizeof(cl->mod));
-    }
-    else if (mdata[0] == 116) // requestTurn
-    {
-        if (activeidx == idx) {
-            setactive(-1);
-        } else if (activeidx == -1) {
-            setactive(idx);
-        }
-    }
-    else
-    {
-        tock(conn, idx);
-    }
-
-    nopoll_msg_unref(msg);
-    return;
-}
-
-void listener_on_close (noPollCtx * ctx, noPollConn * conn, noPollPtr user_data)
-{
-    Client *cl = (Client*) nopoll_conn_get_hook(conn);
-    for (int i = 0; i < clients.size(); i++)
-    {
-        if (clients[i] == cl)
-        {
-            clients.erase(clients.begin()+i);
-            delete cl;
-
-            if (activeidx == i) {
-                setactive(-1);
-            }
-
-            break;
-        }
-    }
-
-    const char* host = nopoll_conn_host((noPollConn*)clients[activeidx]->hook);
-
-    *out2 << "disconnected " << nopoll_conn_host(conn) << " count " << clients.size() << " active " << activeidx << " " << (activeidx == -1 ? "-" : host) << std::endl;
-}
-
-nopoll_bool listener_on_accept (noPollCtx * ctx, noPollConn * conn, noPollPtr user_data)
-{
-    if (clients.size() >= 100)
-        return false;
-
-    Client *cl = new Client;
-    cl->hook = (void*) conn;
-    nopoll_conn_set_hook(conn, cl);
-
-    nopoll_conn_set_on_msg(conn, listener_on_message, NULL);
-    nopoll_conn_set_on_close(conn, listener_on_close, NULL);
-
-    clients.push_back(cl);
-
-    *out2 << "connected " << nopoll_conn_host(conn) << " count " << clients.size() << std::endl;
-
-    return true;
+void new_conn(uv_stream_t* server, int status) {
+    uvwslay_new(server, NULL, msg_conn);
 }
 
 void wsthreadmain(void *out)
 {
-	out2 = (DFHack::color_ostream*) out;
-    noPollConn* listener;
-    noPollCtx *ctx = nopoll_ctx_new ();
-    if (!ctx)
-    {
-        *out2 << "Error: Web Fortress failed to load new context.\n";
+    out2 = (DFHack::color_ostream*) out;
+    loop = uv_default_loop();
+    uv_tcp_t server;
+    uv_tcp_init(loop, &server);
+
+    struct sockaddr_in bind_addr;
+    uv_ip4_addr(HOST, PORT, &bind_addr);
+    uv_tcp_bind(&server, (const struct sockaddr*)&bind_addr, 0);
+    int r = uv_listen((uv_stream_t*) &server, 128, new_conn);
+    if (r) {
+        *out2 << "Error opening socket: " <<
+            uv_err_name(r) << "\n";
         return;
     }
 
-    // create a listener to receive connections
-    listener = nopoll_listener_new(ctx, LISTENER, PORT);
-    if (!nopoll_conn_is_ok(listener)) {
-        *out2 << "Error: Web Fortress failed to open socket " << LISTENER << ":" << PORT <<
-            ". Is another instance running?\n";
-        return;
-    }
-
-    // now set a handler that will be called when a message (fragment or not) is received
-    nopoll_ctx_set_on_accept (ctx, listener_on_accept, NULL);
-
-    *out2 << "Web Fortress is ready on " << LISTENER << ":" << PORT << ".\n";
-    out2->flush();
-    // now call to wait for the loop to notify events
-    nopoll_loop_wait (ctx, 0);
+    *out2 << "Web Fortress is ready on " << HOST << ":" << PORT << ".\n";
+    uv_run(loop, UV_RUN_DEFAULT);
+    return;
 }

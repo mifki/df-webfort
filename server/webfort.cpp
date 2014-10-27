@@ -955,6 +955,7 @@ IMPLEMENT_VMETHOD_INTERPOSE(traderesize_hook, render);
 
 DFhackCExport command_result plugin_init ( color_ostream &out, vector <PluginCommand> &commands)
 {
+    out << "PLUGIN INIT\n" << std::endl;
     auto dflags = init->display.flag;
     if (!dflags.is_set(init_display_flags::USE_GRAPHICS))
     {
