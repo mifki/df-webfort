@@ -6,10 +6,18 @@
  */
 
 #include "server.h"
+#include <cassert>
 
-#include <uv.h>
-#include <wslay/wslay.h>
-#include "uvwslay/uvwslay.h"
+#include <websocketpp/config/asio_no_tls.hpp>
+#include <websocketpp/server.hpp>
+typedef websocketpp::server<websocketpp::config::asio> server;
+
+namespace lib = websocketpp::lib;
+using websocketpp::lib::placeholders::_1;
+using websocketpp::lib::placeholders::_2;
+using websocketpp::lib::bind;
+
+typedef server::message_ptr message_ptr;
 
 #include "ColorText.h"
 #include "modules/Gui.h"
@@ -34,7 +42,6 @@ std::vector<Client*> clients;
 static int activeidx = -1;
 static DFHack::color_ostream *out2;
 static unsigned char buf[64*1024];
-static uv_loop_t* loop;
 
 static SDL::Key mapInputCodeToSDL( const uint32_t code )
 {
@@ -372,41 +379,49 @@ void simkey(int down, int mod, SDL::Key sym, int unicode)
 // 
 //     nopoll_conn_set_on_msg(conn, listener_on_message, NULL);
 //     nopoll_conn_set_on_close(conn, listener_on_close, NULL);
-// 
+//
 //     clients.push_back(cl);
-// 
+//
 //     *out2 << "connected " << nopoll_conn_host(conn) << " count " << clients.size() << std::endl;
-// 
+//
 //     return true;
 // }
-// 
-void msg_conn(struct uvwslay_t *uvwslay, const struct wslay_event_on_msg_recv_arg *arg)
+//
+void on_message(server* s, websocketpp::connection_hdl hdl, message_ptr msg)
 {
-    *out2 << "MSG RECV\n";
-}
-
-void new_conn(uv_stream_t* server, int status) {
-    uvwslay_new(server, NULL, msg_conn);
+    *out2 << "on_message called with hdl: " << hdl.lock().get()
+          << " and message: " << msg->get_payload()
+          << std::endl;
+    try {
+        s->send(hdl, msg->get_payload(), msg->get_opcode());
+    } catch (const websocketpp::lib::error_code& e) {
+        *out2 << "Echo failed because: " << e
+              << "(" << e.message() << ")" << std::endl;
+    }
 }
 
 void wsthreadmain(void *out)
 {
     out2 = (DFHack::color_ostream*) out;
-    loop = uv_default_loop();
-    uv_tcp_t server;
-    uv_tcp_init(loop, &server);
 
-    struct sockaddr_in bind_addr;
-    uv_ip4_addr(HOST, PORT, &bind_addr);
-    uv_tcp_bind(&server, (const struct sockaddr*)&bind_addr, 0);
-    int r = uv_listen((uv_stream_t*) &server, 128, new_conn);
-    if (r) {
-        *out2 << "Error opening socket: " <<
-            uv_err_name(r) << "\n";
-        return;
+    server echo_server;
+
+    try {
+        echo_server.set_access_channels(websocketpp::log::alevel::all);
+        echo_server.clear_access_channels(websocketpp::log::alevel::frame_payload);
+        echo_server.init_asio();
+        echo_server.set_message_handler(bind(&on_message,&echo_server,::_1,::_2));
+        echo_server.listen(1234);
+        echo_server.start_accept();
+        // Start the ASIO io_service run loop
+        *out2 << "Web Fortress started on port " << PORT << "\n";
+        echo_server.run();
+    } catch (const std::exception & e) {
+        *out2 << e.what() << std::endl;
+    } catch (websocketpp::lib::error_code e) {
+        *out2 << e.message() << std::endl;
+    } catch (...) {
+        *out2 << "other exception" << std::endl;
     }
-
-    *out2 << "Web Fortress is ready on " << HOST << ":" << PORT << ".\n";
-    uv_run(loop, UV_RUN_DEFAULT);
     return;
 }

@@ -4,28 +4,19 @@ DFHACKREL ?= r5
 DF ?= df_linux
 DH ?= dfhack
 
-NOPOLL_DIR ?= nopoll-0.2.6.b130
-NOPOLL_I ?= $(NOPOLL_DIR)/src
-NOPOLL_A ?= $(NOPOLL_DIR)/src/.libs/libnopoll.a
+WSPP_I ?= -Iwebsocketpp
+WSPP_L ?= -lboost_system -lz -lpthread
 
-LIBUV_DIR ?= libuv-1.0.0-rc2
-LIBUV_I ?= $(LIBUV_DIR)/include
-LIBUV_A ?= $(LIBUV_DIR)/.libs/libuv.a
-
-WSLAY_DIR ?= wslay
-WSLAY_I ?= $(WSLAY_DIR)/lib/includes
-WSLAY_A ?= $(WSLAY_DIR)/lib/.libs/libwslay.a
-
-SRC = webfort.cpp server.cpp $(LIBUV_A) $(WSLAY_A)
+SRC = webfort.cpp server.cpp
 DEP =
 OUT = dist/dfhack-$(DFHACKREL)/webfort.plug.so
 
 SDL_I = $(shell sdl-config --cflags)
 
-INC = -I"$(DH)/library/include" -I"$(DH)/library/proto" -I"$(DH)/depends/protobuf" -I"$(DH)/depends/tthread" -I$(LIBUV_I) -I$(WSLAY_I) $(SDL_I)
-LIB = -L"$(DH)/build/library" -ldfhack -L"$(DH)/build/depends/tthread" -ldfhack-tinythread -L"/usr/lib/i386-linux-gnu"
+INC = -I"$(DH)/library/include" -I"$(DH)/library/proto" -I"$(DH)/depends/protobuf" -I"$(DH)/depends/tthread" $(WSPP_I) $(SDL_I)
+LIB = -L"$(DH)/build/library" -ldfhack -L"$(DH)/build/depends/tthread" -ldfhack-tinythread -L"/usr/lib/i386-linux-gnu" $(WSPP_L)
 
-CFLAGS = $(INC) -m32 -DLINUX_BUILD -ggdb
+CFLAGS = $(INC) -m32 -DLINUX_BUILD -ggdb -D_WEBSOCKETPP_CPP11_STL_
 LDFLAGS = $(LIB) -shared
 
 ifeq ($(shell uname -s), Darwin)
@@ -33,7 +24,8 @@ ifeq ($(shell uname -s), Darwin)
 	CFLAGS += -Wno-tautological-compare
 	LDFLAGS += -framework OpenGL -lcrypto -lssl -mmacosx-version-min=10.6
 else
-	CXX = clang++ -std=gnu++0x
+	CXX = clang++ -std=c++11
+	CC = clang
 	CFLAGS += -fdiagnostics-color=auto -Wno-tautological-compare
 	LDFLAGS +=
 endif
@@ -41,12 +33,15 @@ endif
 
 all: $(OUT)
 
+uvwslay.o: uvwslay/uvwslay.c
+	$(CC) $(CFLAGS) uvwslay/uvwslay.c -c -o uvwslay.o
+
 $(OUT): $(SRC) $(DEP)
 	-@mkdir -p `dirname $(OUT)`
-	$(CXX) $(SRC) -o $(OUT) -DDFHACK_VERSION=\"$(DFHACKVER)-$(DFHACKREL)\" $(CFLAGS) $(LDFLAGS)
+	$(CXX) $(SRC) $(DEP) -o $(OUT) -DDFHACK_VERSION=\"$(DFHACKVER)-$(DFHACKREL)\" $(CFLAGS) $(LDFLAGS)
 
 install: $(OUT)
 	cp $(OUT) "$(DF)/hack/plugins/"
 
 clean:
-	-rm $(OUT)
+	-rm $(OUT) uvwslay.o
