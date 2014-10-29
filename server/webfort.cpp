@@ -227,7 +227,6 @@ volatile bool needsresize;
 
 bool is_text_tile(int x, int y, bool &is_map)
 {
-    const int tile = x * gps->dimy + y;
     df::viewscreen * ws = Gui::getCurViewscreen();
 
     int32_t w = gps->dimx, h = gps->dimy;
@@ -644,7 +643,6 @@ void unhook()
 
     enabled = false;
 
-    df::renderer* renderer = enabler->renderer;
     long **rVtable = (long **)enabler->renderer;
 
 #ifdef WIN32

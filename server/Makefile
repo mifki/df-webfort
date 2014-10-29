@@ -26,15 +26,13 @@ ifeq ($(shell uname -s), Darwin)
 else
 	CXX = clang++ -std=c++11
 	CC = clang
-	CFLAGS += -fdiagnostics-color=auto -Wno-tautological-compare
+	CFLAGS += -fdiagnostics-color=auto
+	CFLAGS += -Wall -Wno-tautological-compare
 	LDFLAGS +=
 endif
 
 
 all: $(OUT)
-
-uvwslay.o: uvwslay/uvwslay.c
-	$(CC) $(CFLAGS) uvwslay/uvwslay.c -c -o uvwslay.o
 
 $(OUT): $(SRC) $(DEP)
 	-@mkdir -p `dirname $(OUT)`
@@ -44,4 +42,4 @@ install: $(OUT)
 	cp $(OUT) "$(DF)/hack/plugins/"
 
 clean:
-	-rm $(OUT) uvwslay.o
+	-rm $(OUT)

@@ -206,7 +206,6 @@ void tock(server* s, conn hdl)
             time_left = PLAYTIME - played;
         }
     }
-    int sent = 1;
 
     unsigned char *b = buf;
     // [0] msgtype
@@ -227,7 +226,6 @@ void tock(server* s, conn hdl)
     *(b++) = gps->dimx;
     *(b++) = gps->dimy;
 
-    unsigned char *emptyb = b;
     unsigned char *mod = cl.mod;
 
     for (int y = 0; y < gps->dimy; y++)
@@ -362,7 +360,7 @@ void wsthreadmain(void *out)
         srv.set_close_handler(bind(&on_close, &srv, ::_1));
 
         lib::error_code ec;
-        srv.listen(1234, ec);
+        srv.listen(PORT, ec);
         if (ec) {
             *out2 << "Unable to start Webfort on port " << PORT
                   << ", is it being used somehere else?" << std::endl;
