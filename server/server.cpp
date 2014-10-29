@@ -10,12 +10,14 @@
 
 #include <websocketpp/config/asio_no_tls.hpp>
 #include <websocketpp/server.hpp>
-typedef websocketpp::server<websocketpp::config::asio> server;
 
+namespace ws  = websocketpp;
 namespace lib = websocketpp::lib;
 using websocketpp::lib::placeholders::_1;
 using websocketpp::lib::placeholders::_2;
 using websocketpp::lib::bind;
+
+typedef ws::server<ws::config::asio> server;
 
 typedef server::message_ptr message_ptr;
 
@@ -23,26 +25,37 @@ typedef server::message_ptr message_ptr;
 #include "modules/Gui.h"
 #include "df/graphic.h"
 
+using df::global::gps;
+
+#define PLAYTIME 60*10
+#define IDLETIME 60*3
+#define MAX_CLIENTS 32
+#define PORT 1234
+
+conn_map clients;
+
+static ws::connection_hdl null_conn = std::weak_ptr<void>();
+static Client null_client = Client();
+
+static ws::connection_hdl active_conn = null_conn;
+typedef ws::connection_hdl conn;
+
+static std::owner_less<std::weak_ptr<void>> conn_lt;
+static bool conn_eq(conn p, conn q)
+{
+    return (!conn_lt(p, q) && !conn_lt(q, p));
+}
+
+static DFHack::color_ostream *out2;
+static unsigned char buf[64*1024];
+
+/* FIXME: input handling is long-winded enough to get its own file. */
 #include "SDL_events.h"
 #include "SDL_keysym.h"
 extern "C"
 {
 extern int SDL_PushEvent( SDL::Event* event );
 }
-
-using df::global::gps;
-
-#define PLAYTIME 60*10
-#define IDLETIME 60*3
-#define HOST "0.0.0.0"
-#define PORT 1234
-
-std::vector<Client*> clients;
-
-static int activeidx = -1;
-static DFHack::color_ostream *out2;
-static unsigned char buf[64*1024];
-
 static SDL::Key mapInputCodeToSDL( const uint32_t code )
 {
 #define MAP(a, b) case a: return b;
@@ -122,303 +135,247 @@ void simkey(int down, int mod, SDL::Key sym, int unicode)
     SDL_PushEvent(&event);
 }
 
-// void setactive(int newidx)
-// {
-//     if (newidx >= clients.size()) {
-//         newidx = -1;
-//     }
-// 
-//     activeidx = newidx;
-// 
-//     if (activeidx != -1) {
-//         Client *newcl = clients[activeidx];
-// 
-//         newcl->atime = newcl->itime = time(NULL);
-//         memset(newcl->mod, 0, sizeof(newcl->mod));
-//     }
-// 
-//     if (!(*df::global::pause_state)) {
-//         simkey(1, 0, SDL::K_SPACE, ' ');
-//         simkey(0, 0, SDL::K_SPACE, ' ');
-//     }
-//     const char* host = nopoll_conn_host((noPollConn*)clients[activeidx]->hook);
-//     *out2 << "active " << activeidx << " " << (activeidx == -1 ? "-" : host) << std::endl;
-// }
-// 
-// void tock(noPollConn* conn, int idx)
-// {
-//     // Tock
-//     Client* cl = clients[idx];
-//     int32_t time_left = -1;
-//     if (activeidx != -1 && clients.size() > 1)
-//     {
-//         time_t now = time(NULL);
-//         int played = now - clients[activeidx]->atime;
-//         int idle = now - clients[activeidx]->itime;
-//         if (played >= PLAYTIME || idle >= IDLETIME) {
-//             setactive(-1);
-//             time_left = -1;
-//         } else {
-//             time_left = PLAYTIME - played;
-//         }
-//     }
-//     int sent = 1;
-// 
-//     unsigned char *b = buf;
-//     // [0] msgtype
-//     *(b++) = 110;
-// 
-//     uint8_t client_count = clients.size();
-//     if (idx == activeidx) {
-//         client_count |= 128;
-//     }
-//     // [1] # of connected clients. 128 bit set if client is active player.
-//     *(b++) = client_count;
-// 
-//     // [2-5] time left, in seconds. -1 if no player.
-//     memcpy(b, &time_left, sizeof(time_left));
-//     b += sizeof(time_left);
-// 
-//     // [6-7] game dimensions
-//     *(b++) = gps->dimx;
-//     *(b++) = gps->dimy;
-// 
-//     unsigned char *emptyb = b;
-//     unsigned char *mod = cl->mod;
-// 
-//     for (int y = 0; y < gps->dimy; y++)
-//     {
-//         for (int x = 0; x < gps->dimx; x++)
-//         {
-//             const int tile = x * gps->dimy + y;
-//             unsigned char *s = sc + tile*4;
-//             if (mod[tile])
-//                 continue;
-// 
-//             *(b++) = x;
-//             *(b++) = y;
-//             *(b++) = s[0];
-//             *(b++) = s[2];
-// 
-//             int bold = (s[3] != 0) * 8;
-//             int fg   = (s[1] + bold) % 16;
-// 
-//             *(b++) = fg;
-//             mod[tile] = 1;
-//         }
-//     }
-// 
-//     nopoll_conn_send_binary (conn, (const char*)buf, (int)(b-buf));
-// }
-// 
-// int getClientIndex(Client* cl)
-// {
-//     int idx = -1;
-//     for (int i = 0; i < clients.size(); i++)
-//     {
-//         if (clients[i] == cl)
-//         {
-//             idx = i;
-//             break;
-//         }
-//     }
-//     return idx;
-// }
-// 
-// void listener_on_message (noPollCtx * ctx, noPollConn * conn, noPollMsg * msg, noPollPtr user_data)
-// {
-//     Client *cl = (Client*) nopoll_conn_get_hook(conn);
-//     int idx = getClientIndex(cl);
-// 
-//     const unsigned char *mdata = (const unsigned char*) nopoll_msg_get_payload(msg);
-//     int msz = nopoll_msg_get_payload_size(msg);
-// 
-//     if (mdata[0] == 112 && msz == 3) // ResizeEvent
-//     {
-//         if (idx == activeidx)
-//         {
-//             newwidth = mdata[1];
-//             newheight = mdata[2];
-//             needsresize = true;
-//         }
-//     }
-//     else if (mdata[0] == 111 && msz == 4) // KeyEvent
-//     {
-//         if (idx == activeidx)
-//         {
-//             cl->itime = time(NULL);
-// 
-//             SDL::Key k = mdata[2] ? (SDL::Key)mdata[2] : mapInputCodeToSDL(mdata[1]);
-//             if (k != SDL::K_UNKNOWN)
-//             {
-//                 int jsmods = mdata[3];
-//                 int sdlmods = 0;
-// 
-//                 if (jsmods & 1)
-//                 {
-//                     simkey(1, 0, SDL::K_LALT, 0);
-//                     sdlmods |= SDL::KMOD_ALT;
-//                 }
-//                 if (jsmods & 2)
-//                 {
-//                     simkey(1, 0, SDL::K_LSHIFT, 0);
-//                     sdlmods |= SDL::KMOD_SHIFT;
-//                 }
-//                 if (jsmods & 4)
-//                 {
-//                     simkey(1, 0, SDL::K_LCTRL, 0);
-//                     sdlmods |= SDL::KMOD_CTRL;
-//                 }
-// 
-//                 simkey(1, sdlmods, k, mdata[2]);
-//                 simkey(0, sdlmods, k, mdata[2]);
-// 
-//                 if (jsmods & 1)
-//                     simkey(0, 0, SDL::K_LALT, 0);
-//                 if (jsmods & 2)
-//                     simkey(0, 0, SDL::K_LSHIFT, 0);
-//                 if (jsmods & 4)
-//                     simkey(0, 0, SDL::K_LCTRL, 0);
-//             }
-//         }
-//     }
-//     /*else if (mdata[0] == 113)
-//     {
-//         int x = (((unsigned int)mdata[1]<<8) | mdata[2]);
-//         int y = (((unsigned int)mdata[3]<<8) | mdata[4]);
-//         SDL::Event event;
-//             memset( &event, 0, sizeof(event) );
-//             event.type = 4;
-//             event.motion.type = 4;
-//             event.motion.state = 0;
-//             event.motion.x = x;
-//             event.motion.y = y;
-//         SDL_PushEvent( &event );
-// 
-//         gps->mouse_x = x;
-//         gps->mouse_y = y;
-//     }
-//     else if (mdata[0] == 114)
-//     {
-//         SDL::Event event;
-// 
-//         memset( &event, 0, sizeof(event) );
-//         event.type = SDL::ET_MOUSEBUTTONDOWN;
-//         event.button.type = 5;//SDL::SDL_MOUSEBUTTONDOWN;
-//         event.button.which = 0;
-//         event.button.button = 1;
-//         event.button.state = SDL::BTN_PRESSED;
-//         event.button.x = 100;
-//         event.button.y = 100;
-//         SDL_PushEvent( &event );
-// 
-//         memset( &event, 0, sizeof(event) );
-//         event.type = SDL::ET_MOUSEBUTTONUP;
-//         event.button.type = 5;//SDL::SDL_MOUSEBUTTONUP;
-//         event.button.which = 0;
-//         event.button.button = 1;
-//         event.button.state = SDL::BTN_RELEASED;
-//         event.button.x = 100;
-//         event.button.y = 100;
-//         SDL_PushEvent( &event );
-// 
-//         //nopoll_conn_send_binary (conn, "\0\0\0", 3);
-//     }*/
-//     else if (mdata[0] == 115) // ModifierEvent
-//     {
-//         memset(cl->mod, 0, sizeof(cl->mod));
-//     }
-//     else if (mdata[0] == 116) // requestTurn
-//     {
-//         if (activeidx == idx) {
-//             setactive(-1);
-//         } else if (activeidx == -1) {
-//             setactive(idx);
-//         }
-//     }
-//     else
-//     {
-//         tock(conn, idx);
-//     }
-// 
-//     nopoll_msg_unref(msg);
-//     return;
-// }
-// 
-// void listener_on_close (noPollCtx * ctx, noPollConn * conn, noPollPtr user_data)
-// {
-//     Client *cl = (Client*) nopoll_conn_get_hook(conn);
-//     for (int i = 0; i < clients.size(); i++)
-//     {
-//         if (clients[i] == cl)
-//         {
-//             clients.erase(clients.begin()+i);
-//             delete cl;
-// 
-//             if (activeidx == i) {
-//                 setactive(-1);
-//             }
-// 
-//             break;
-//         }
-//     }
-// 
-//     const char* host = nopoll_conn_host((noPollConn*)clients[activeidx]->hook);
-// 
-//     *out2 << "disconnected " << nopoll_conn_host(conn) << " count " << clients.size() << " active " << activeidx << " " << (activeidx == -1 ? "-" : host) << std::endl;
-// }
-// 
-// nopoll_bool listener_on_accept (noPollCtx * ctx, noPollConn * conn, noPollPtr user_data)
-// {
-//     if (clients.size() >= 100)
-//         return false;
-// 
-//     Client *cl = new Client;
-//     cl->hook = (void*) conn;
-//     nopoll_conn_set_hook(conn, cl);
-// 
-//     nopoll_conn_set_on_msg(conn, listener_on_message, NULL);
-//     nopoll_conn_set_on_close(conn, listener_on_close, NULL);
-//
-//     clients.push_back(cl);
-//
-//     *out2 << "connected " << nopoll_conn_host(conn) << " count " << clients.size() << std::endl;
-//
-//     return true;
-// }
-//
-void on_message(server* s, websocketpp::connection_hdl hdl, message_ptr msg)
+
+Client& get_client(conn hdl)
 {
-    *out2 << "on_message called with hdl: " << hdl.lock().get()
-          << " and message: " << msg->get_payload()
-          << std::endl;
-    try {
-        s->send(hdl, msg->get_payload(), msg->get_opcode());
-    } catch (const websocketpp::lib::error_code& e) {
-        *out2 << "Echo failed because: " << e
-              << "(" << e.message() << ")" << std::endl;
+    auto it = clients.find(hdl);
+    if (it == clients.end()) {
+        return null_client;
     }
+    return it->second;
+}
+
+void set_active(conn newc)
+{
+    if (conn_eq(active_conn, newc)) { return; }
+    Client active_cl = get_client(newc); // fail early
+    active_conn = newc;
+
+    if (!conn_eq(active_conn, null_conn)) {
+        active_cl.atime = active_cl.itime = time(NULL);
+        memset(active_cl.mod, 0, sizeof(active_cl.mod));
+    }
+
+    if (!(*df::global::pause_state)) {
+        simkey(1, 0, SDL::K_SPACE, ' ');
+        simkey(0, 0, SDL::K_SPACE, ' ');
+    }
+
+    *out2 << active_cl.name << " is now active." << std::endl;
+}
+
+bool validate_open(conn hdl)
+{
+    if (clients.size() >= MAX_CLIENTS) {
+        return false;
+    }
+    // TODO: version negotiation
+    return true;
+}
+
+void on_open(server* s, conn hdl)
+{
+    Client cl;
+
+    auto con = s->get_con_from_hdl(hdl);
+    cl.name = con->get_remote_endpoint();
+
+    cl.atime = cl.itime = time(NULL);
+    memset(cl.mod, 0, sizeof(cl.mod));
+
+    clients[hdl] = cl;
+    *out2 << cl.name  << " has connected." << std::endl;
+}
+
+void tock(server* s, conn hdl)
+{
+    // Tock
+    Client cl = get_client(hdl);
+    int32_t time_left = -1;
+
+    if (!conn_eq(active_conn, null_conn) && clients.size() > 1)
+    {
+        Client active_cl = get_client(active_conn);
+        time_t now = time(NULL);
+        int played = now - active_cl.atime;
+        int idle = now - active_cl.itime;
+        if (played >= PLAYTIME || idle >= IDLETIME) {
+            set_active(null_conn);
+            time_left = -1;
+        } else {
+            time_left = PLAYTIME - played;
+        }
+    }
+    int sent = 1;
+
+    unsigned char *b = buf;
+    // [0] msgtype
+    *(b++) = 110;
+
+    uint8_t client_count = clients.size();
+    if (conn_eq(hdl, active_conn)) {
+        client_count |= 128;
+    }
+    // [1] # of connected clients. 128 bit set if client is active player.
+    *(b++) = client_count;
+
+    // [2-5] time left, in seconds. -1 if no player.
+    memcpy(b, &time_left, sizeof(time_left));
+    b += sizeof(time_left);
+
+    // [6-7] game dimensions
+    *(b++) = gps->dimx;
+    *(b++) = gps->dimy;
+
+    unsigned char *emptyb = b;
+    unsigned char *mod = cl.mod;
+
+    for (int y = 0; y < gps->dimy; y++)
+    {
+        for (int x = 0; x < gps->dimx; x++)
+        {
+            const int tile = x * gps->dimy + y;
+            unsigned char *s = sc + tile*4;
+            if (mod[tile])
+                continue;
+
+            *(b++) = x;
+            *(b++) = y;
+            *(b++) = s[0];
+            *(b++) = s[2];
+
+            int bold = (s[3] != 0) * 8;
+            int fg   = (s[1] + bold) % 16;
+
+            *(b++) = fg;
+            mod[tile] = 1;
+        }
+    }
+    s->send(hdl, (const void*) buf, (size_t)(b-buf), ws::frame::opcode::binary);
+}
+
+
+void on_message(server* s, conn hdl, message_ptr msg)
+{
+    Client cl = get_client(hdl);
+
+    auto str = msg->get_payload();
+    const unsigned char *mdata = (const unsigned char*) str.c_str();
+    int msz = str.size();
+
+    if (mdata[0] == 112 && msz == 3) // ResizeEvent
+    {
+        if (conn_eq(hdl, active_conn))
+        {
+            newwidth = mdata[1];
+            newheight = mdata[2];
+            needsresize = true;
+        }
+    }
+    else if (mdata[0] == 111 && msz == 4) // KeyEvent
+    {
+        if (conn_eq(hdl, active_conn))
+        {
+            cl.itime = time(NULL);
+
+            SDL::Key k = mdata[2] ? (SDL::Key)mdata[2] : mapInputCodeToSDL(mdata[1]);
+            if (k != SDL::K_UNKNOWN)
+            {
+                int jsmods = mdata[3];
+                int sdlmods = 0;
+
+                if (jsmods & 1)
+                {
+                    simkey(1, 0, SDL::K_LALT, 0);
+                    sdlmods |= SDL::KMOD_ALT;
+                }
+                if (jsmods & 2)
+                {
+                    simkey(1, 0, SDL::K_LSHIFT, 0);
+                    sdlmods |= SDL::KMOD_SHIFT;
+                }
+                if (jsmods & 4)
+                {
+                    simkey(1, 0, SDL::K_LCTRL, 0);
+                    sdlmods |= SDL::KMOD_CTRL;
+                }
+
+                simkey(1, sdlmods, k, mdata[2]);
+                simkey(0, sdlmods, k, mdata[2]);
+
+                if (jsmods & 1)
+                    simkey(0, 0, SDL::K_LALT, 0);
+                if (jsmods & 2)
+                    simkey(0, 0, SDL::K_LSHIFT, 0);
+                if (jsmods & 4)
+                    simkey(0, 0, SDL::K_LCTRL, 0);
+            }
+        }
+    }
+    else if (mdata[0] == 115) // ModifierEvent
+    {
+        memset(cl.mod, 0, sizeof(cl.mod));
+    }
+    else if (mdata[0] == 116) // requestTurn
+    {
+        assert(conn_eq(active_conn, active_conn));
+        assert(!conn_eq(hdl, null_conn));
+        if (conn_eq(hdl, active_conn)) {
+            set_active(null_conn);
+        } else if (conn_eq(active_conn, null_conn)) {
+            set_active(hdl);
+        }
+    }
+    else
+    {
+        tock(s, hdl);
+    }
+
+    return;
+}
+
+void on_close(server* s, conn c)
+{
+    Client cl = get_client(c);
+    *out2 << cl.name << " has disconnected." << std::endl;
+    if (conn_eq(c, active_conn)) {
+        set_active(null_conn);
+    }
+    clients.erase(c);
 }
 
 void wsthreadmain(void *out)
 {
+    null_client.name = "__NOBODY";
     out2 = (DFHack::color_ostream*) out;
 
-    server echo_server;
+    server srv;
 
     try {
-        echo_server.set_access_channels(websocketpp::log::alevel::all);
-        echo_server.clear_access_channels(websocketpp::log::alevel::frame_payload);
-        echo_server.init_asio();
-        echo_server.set_message_handler(bind(&on_message,&echo_server,::_1,::_2));
-        echo_server.listen(1234);
-        echo_server.start_accept();
+        srv.set_access_channels(ws::log::alevel::all);
+        srv.clear_access_channels(ws::log::alevel::frame_payload);
+        srv.init_asio();
+
+        srv.set_validate_handler(&validate_open);
+        srv.set_open_handler(bind(&on_open, &srv, ::_1));
+        srv.set_message_handler(bind(&on_message, &srv, ::_1, ::_2));
+        srv.set_close_handler(bind(&on_close, &srv, ::_1));
+
+        lib::error_code ec;
+        srv.listen(1234, ec);
+        if (ec) {
+            *out2 << "Unable to start Webfort on port " << PORT
+                  << ", is it being used somehere else?" << std::endl;
+            return;
+        }
+
+        srv.start_accept();
         // Start the ASIO io_service run loop
         *out2 << "Web Fortress started on port " << PORT << "\n";
-        echo_server.run();
+        srv.run();
     } catch (const std::exception & e) {
         *out2 << e.what() << std::endl;
-    } catch (websocketpp::lib::error_code e) {
+    } catch (lib::error_code e) {
         *out2 << e.message() << std::endl;
     } catch (...) {
         *out2 << "other exception" << std::endl;

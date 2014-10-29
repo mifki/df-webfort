@@ -515,9 +515,9 @@ void write_tile_arrays(df::renderer *r, int x, int y, GLfloat *fg, GLfloat *bg, 
                     tilesets[override_defs[s0].tilesetidx].small_texpos[override_defs[s0].tile];
         }
     }
-
-    for (int i = 0; i < clients.size(); i++)
-        clients[i]->mod[tile] = 0;
+    for (auto& i: clients) {
+        i.second.mod[tile] = 0;
+    }
 
     // Set texture coordinates
     gl_texpos *txt = (gl_texpos*) enabler->textures.gl_texpos;

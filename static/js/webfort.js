@@ -161,7 +161,7 @@ function onMessage(evt) {
 
 	var ctx = canvas.getContext('2d');
 	if (data[0] === 110) {
-		stats.begin();
+		if (stats) { stats.begin(); }
 
 		var players = data[1] & 127;
 		var isActive = data[1] & 128;
@@ -186,7 +186,7 @@ function onMessage(evt) {
 
 		renderUpdate(ctx, data);
 
-		stats.end();
+		if (stats) { stats.end(); }
 	}
 	else if (data[0] == 116) {
 		spectator = (data[1]==1 ? true : false);

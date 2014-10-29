@@ -9,16 +9,19 @@
  */
 
 #include <ctime>
-#include <vector>
+#include <map>
+#include <string>
+#include <websocketpp/server.hpp>
 
 typedef struct {
-    void* hook;
+    std::string name;
     unsigned char mod[256*256];
     time_t itime;
     time_t atime;
 } Client;
 
-extern std::vector<Client*> clients;
+typedef std::map<websocketpp::connection_hdl, Client, std::owner_less<websocketpp::connection_hdl>> conn_map;
+extern conn_map clients;
 
 extern unsigned char sc[256*256*5];
 extern int newwidth, newheight;
