@@ -4,20 +4,19 @@ DFHACKREL ?= r5
 DF ?= df_linux
 DH ?= dfhack
 
-NOPOLL_DIR ?= nopoll-0.2.6.b130
-NOPOLL_I ?= $(NOPOLL_DIR)/src
-NOPOLL_L ?= $(NOPOLL_DIR)/src/.libs
+WSPP_I ?= -Iwebsocketpp
+WSPP_L ?= -lboost_system -lz -lpthread
 
-SRC = webfort.cpp $(NOPOLL_L)/libnopoll.a
+SRC = webfort.cpp server.cpp
 DEP =
 OUT = dist/dfhack-$(DFHACKREL)/webfort.plug.so
 
 SDL_I = $(shell sdl-config --cflags)
 
-INC = -I"$(DH)/library/include" -I"$(DH)/library/proto" -I"$(DH)/depends/protobuf" -I"$(DH)/depends/tthread" -I$(NOPOLL_I) $(SDL_I)
-LIB = -L"$(DH)/build/library" -ldfhack -L"$(DH)/build/depends/tthread" -ldfhack-tinythread -L"/usr/lib/i386-linux-gnu"
+INC = -I"$(DH)/library/include" -I"$(DH)/library/proto" -I"$(DH)/depends/protobuf" -I"$(DH)/depends/tthread" $(WSPP_I) $(SDL_I)
+LIB = -L"$(DH)/build/library" -ldfhack -L"$(DH)/build/depends/tthread" -ldfhack-tinythread -L"/usr/lib/i386-linux-gnu" $(WSPP_L)
 
-CFLAGS = $(INC) -m32 -DLINUX_BUILD -ggdb
+CFLAGS = $(INC) -m32 -DLINUX_BUILD -ggdb -D_WEBSOCKETPP_CPP11_STL_
 LDFLAGS = $(LIB) -shared
 
 ifeq ($(shell uname -s), Darwin)
@@ -25,9 +24,11 @@ ifeq ($(shell uname -s), Darwin)
 	CFLAGS += -Wno-tautological-compare
 	LDFLAGS += -framework OpenGL -lcrypto -lssl -mmacosx-version-min=10.6
 else
-	CXX = clang++ -std=gnu++0x
-	CFLAGS += -fdiagnostics-color=auto -Wno-tautological-compare
-	LDFLAGS += -lcrypto -lssl
+	CXX = clang++ -std=c++11
+	CC = clang
+	CFLAGS += -fdiagnostics-color=auto
+	CFLAGS += -Wall -Wno-tautological-compare
+	LDFLAGS +=
 endif
 
 
@@ -35,7 +36,7 @@ all: $(OUT)
 
 $(OUT): $(SRC) $(DEP)
 	-@mkdir -p `dirname $(OUT)`
-	$(CXX) $(SRC) -o $(OUT) -DDFHACK_VERSION=\"$(DFHACKVER)-$(DFHACKREL)\" $(CFLAGS) $(LDFLAGS)
+	$(CXX) $(SRC) $(DEP) -o $(OUT) -DDFHACK_VERSION=\"$(DFHACKVER)-$(DFHACKREL)\" $(CFLAGS) $(LDFLAGS)
 
 install: $(OUT)
 	cp $(OUT) "$(DF)/hack/plugins/"
