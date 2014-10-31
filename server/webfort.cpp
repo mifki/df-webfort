@@ -69,13 +69,6 @@
 
 #include "tinythread.h"
 
-#include "SDL_events.h"
-#include "SDL_keysym.h"
-extern "C"
-{
-extern int SDL_PushEvent( SDL::Event* event );
-}
-
 #include "server.h"
 
 static tthread::thread * wsthread;
@@ -514,8 +507,8 @@ void write_tile_arrays(df::renderer *r, int x, int y, GLfloat *fg, GLfloat *bg, 
                     tilesets[override_defs[s0].tilesetidx].small_texpos[override_defs[s0].tile];
         }
     }
-    for (auto& i: clients) {
-        i.second.mod[tile] = 0;
+    for (auto i = clients.begin(); i != clients.end(); i++) {
+        i->second.mod[tile] = 0;
     }
 
     // Set texture coordinates
