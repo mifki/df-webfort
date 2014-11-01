@@ -5,7 +5,7 @@
  * Copyright (c) 2014 mifki, ISC license.
  */
 
-#include "server.h"
+#include "shared.h"
 #include <cassert>
 
 #include <websocketpp/config/asio_no_tls.hpp>
@@ -20,10 +20,6 @@ using websocketpp::lib::bind;
 typedef ws::server<ws::config::asio> server;
 
 typedef server::message_ptr message_ptr;
-
-#include "ColorText.h"
-#include "modules/Gui.h"
-#include "df/graphic.h"
 
 using df::global::gps;
 

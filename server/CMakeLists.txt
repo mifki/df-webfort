@@ -18,7 +18,7 @@ set(SRC
 )
 # A list of headers
 set(HDRS
-	server.h
+	shared.h
 )
 set_source_files_properties(${HDRS} PROPERTIES HEADER_FILE_ONLY TRUE)
 
