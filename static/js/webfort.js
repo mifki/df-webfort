@@ -3,10 +3,24 @@
  * Copyright (c) 2014 mifki, ISC license.
  */
 
-var colors = [32, 39, 49, 0, 106, 255, 68, 184, 57, 114, 156, 251, 212, 54, 85,
-	176, 50, 255, 217, 118, 65, 170, 196, 178, 128, 151, 156, 48, 165, 255, 144,
-	255, 79, 168, 212, 255, 255, 82, 82, 255, 107, 255, 255, 232, 102, 255, 250,
-	232
+// TODO: tag colors
+var colors = [
+	32, 39, 49,
+	0, 106, 255,
+	68, 184, 57,
+	114, 156, 251,
+	212, 54, 85,
+	176, 50, 255,
+	217, 118, 65,
+	170, 196, 178,
+	128, 151, 156,
+	48, 165, 255,
+	144, 255, 79,
+	168, 212, 255,
+	255, 82, 82,
+	255, 107, 255,
+	255, 232, 102,
+	255, 250, 232
 ];
 
 function getJsonFromUrl() {
@@ -65,6 +79,7 @@ function setStatus(text, color, onclick) {
 	}
 	st.style.backgroundColor = color;
 }
+
 function connect() {
 	setStatus('Connecting...', 'orange');
 	websocket = new WebSocket(wsUri);
@@ -170,9 +185,7 @@ function onMessage(evt) {
 			(data[3]<<8) |
 			(data[4]<<16) |
 			(data[5]<<24);
-		//console.log(isActive, players, timeLeft);
 		renderQueueStatus(isActive, players, timeLeft);
-
 
 		var neww = data[6] * 16;
 		var newh = data[7] * 16;
@@ -187,10 +200,10 @@ function onMessage(evt) {
 		renderUpdate(ctx, data);
 
 		if (stats) { stats.end(); }
-	}
-	else if (data[0] == 116) {
+	} else if (data[0] == 116) {
 		spectator = (data[1]==1 ? true : false);
 	}
+
 	setTimeout(function() {
 		websocket.send(new Uint8Array([110]));
 	}, 1000 / 30);
@@ -226,7 +239,6 @@ function colorize(img, cnv) {
 					colors[c * 3 + 2] + ')';
 
 			ctx3.fillRect(i * 256 + 16 * 15, j * 256 + 16 * 15, 16, 16);
-
 		}
 	}
 }
@@ -294,6 +306,7 @@ document.onkeydown = function(ev) {
 	if (ev.keyCode < 65) {
 		var mod = (ev.shiftKey << 1) | (ev.ctrlKey << 2) | ev.altKey;
 		var data = new Uint8Array([111, ev.keyCode, 0, mod]);
+		logKeyCode(ev);
 		websocket.send(data);
 		ev.preventDefault();
 	} else {
@@ -307,6 +320,7 @@ document.onkeypress = function(ev) {
 
 	var mod = (ev.shiftKey << 1) | (ev.ctrlKey << 2) | ev.altKey;
 	var data = new Uint8Array([111, 0, ev.charCode, mod]);
+	logCharCode(ev)
 	websocket.send(data);
 
 	ev.preventDefault();
