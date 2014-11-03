@@ -46,6 +46,7 @@ else(UNIX)
 		-D_WEBSOCKETPP_CPP11_SYSTEM_ERROR_
 		-D_WEBSOCKETPP_CPP11_RANDOM_DEVICE_
 		-D_WEBSOCKETPP_CPP11_MEMORY_
+		-DNOMINMAX
 		)
 endif(UNIX)
 
@@ -55,7 +56,7 @@ include_directories(${SDL_INCLUDE_DIRS})
 
 # Boost/Asio
 set(Boost_FIND_REQUIRED TRUE)
-set(WS_BOOST_LIBS system)
+set(WS_BOOST_LIBS system thread regex)
 find_package(Boost 1.39.0 COMPONENTS "${WS_BOOST_LIBS}")
 
 if(Boost_FOUND)

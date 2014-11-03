@@ -37,6 +37,7 @@ void wsthreadmain(void*);
  */
 
 #include "PluginManager.h"
+#include "VersionInfo.h"
 #include "modules/MapCache.h"
 #include "modules/Gui.h"
 #include "df/graphic.h"
@@ -63,7 +64,6 @@ void wsthreadmain(void*);
 // #include "modules/Screen.h"
 // #include "modules/Buildings.h"
 // #include "MemAccess.h"
-// #include "VersionInfo.h"
 // #include "df/construction.h"
 // #include "df/block_square_event_frozen_liquidst.h"
 // #include "df/building_type.h"
