@@ -338,6 +338,11 @@ void on_close(server* s, conn c)
     clients.erase(c);
 }
 
+void on_init(conn hdl, boost::asio::ip::tcp::socket & s)
+{
+    s.set_option(boost::asio::ip::tcp::no_delay(true));
+}
+
 void wsthreadmain(void *out)
 {
     null_client.name = "__NOBODY";
@@ -346,10 +351,20 @@ void wsthreadmain(void *out)
     server srv;
 
     try {
-        srv.set_access_channels(ws::log::alevel::all);
-        srv.clear_access_channels(ws::log::alevel::frame_payload);
+        srv.set_access_channels(
+                ws::log::alevel::connect    |
+                ws::log::alevel::disconnect |
+                ws::log::alevel::app
+        );
+        srv.set_error_channels(
+                ws::log::elevel::info   |
+                ws::log::elevel::warn   |
+                ws::log::elevel::rerror |
+                ws::log::elevel::fatal
+        );
         srv.init_asio();
 
+        srv.set_socket_init_handler(&on_init);
         srv.set_validate_handler(&validate_open);
         srv.set_open_handler(bind(&on_open, &srv, ::_1));
         srv.set_message_handler(bind(&on_message, &srv, ::_1, ::_2));
