@@ -52,10 +52,12 @@ else(UNIX)
 	option(DL_DEPS "Download dependencies as windows binaries over http. Insecure." ON)
 	# Download deps
 	if(DL_DEPS)
+		message("Downloading dependencies. This may take a while.")
 		file(DOWNLOAD https://s3.amazonaws.com/webfort/webfort-deps-r1.tar.gz
 			${WFDIR}/webfort-deps.tar.gz
 			EXPECTED_MD5 24e047672dc7cd787556810620838549)
 		execute_process(COMMAND ${CMAKE_COMMAND} -E tar xzf ${WFDIR}/webfort-deps.tar.gz WORKING_DIRECTORY ${WFDIR})
+		message("Dependencies downloaded :)")
 	endif()
 
 	set(SDL_DIR ${WFDIR}/SDL)

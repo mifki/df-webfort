@@ -23,10 +23,11 @@ typedef server::message_ptr message_ptr;
 
 using df::global::gps;
 
-#define PLAYTIME 60*10
 #define IDLETIME 60*3
-#define MAX_CLIENTS 32
-#define PORT 1234
+// TURNTIME needs to fit at least a uint32
+int64_t TURNTIME = 600; // 10 minutes
+uint32_t MAX_CLIENTS = 32;
+uint16_t PORT = 1234;
 
 conn_map clients;
 
@@ -195,11 +196,11 @@ void tock(server* s, conn hdl)
         time_t now = time(NULL);
         int played = now - active_cl.atime;
         int idle = now - active_cl.itime;
-        if (played >= PLAYTIME || idle >= IDLETIME) {
+        if (played >= TURNTIME || idle >= IDLETIME) {
             set_active(null_conn);
             time_left = -1;
         } else {
-            time_left = PLAYTIME - played;
+            time_left = TURNTIME - played;
         }
     }
 
@@ -350,7 +351,20 @@ void wsthreadmain(void *out)
 
     server srv;
 
+    char* tmp;
+
     try {
+        // FIXME: bounds checking.
+        if ((tmp = getenv("WF_PORT"))) {
+            PORT = (uint16_t)std::stol(tmp);
+        }
+        if ((tmp = getenv("WF_TURNTIME"))) {
+            TURNTIME = (int64_t)std::stol(tmp);
+        }
+        if ((tmp = getenv("WF_MAX_CLIENTS"))) {
+            MAX_CLIENTS = (uint32_t)std::stol(tmp);
+        }
+
         srv.set_access_channels(
                 ws::log::alevel::connect    |
                 ws::log::alevel::disconnect |
@@ -383,11 +397,11 @@ void wsthreadmain(void *out)
         *out2 << "Web Fortress started on port " << PORT << "\n";
         srv.run();
     } catch (const std::exception & e) {
-        *out2 << e.what() << std::endl;
+        *out2 << "Webfort failed to start: " << e.what() << std::endl;
     } catch (lib::error_code e) {
-        *out2 << e.message() << std::endl;
+        *out2 << "Webfort failed to start: " << e.message() << std::endl;
     } catch (...) {
-        *out2 << "other exception" << std::endl;
+        *out2 << "Webfort failed to start: other exception" << std::endl;
     }
     return;
 }
