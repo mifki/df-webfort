@@ -41,13 +41,27 @@ else(UNIX)
 	if(NOT MSVC10)
 		message(FATAL_ERROR "Visual Studio 2010 required.")
 	endif()
+	set(WFDIR ${CMAKE_CURRENT_BINARY_DIR})
 	add_definitions(
 		-D_WEBSOCKETPP_CPP11_FUNCTIONAL_
 		-D_WEBSOCKETPP_CPP11_SYSTEM_ERROR_
 		-D_WEBSOCKETPP_CPP11_RANDOM_DEVICE_
 		-D_WEBSOCKETPP_CPP11_MEMORY_
 		-DNOMINMAX
-		)
+	)
+	option(DL_DEPS "Download dependencies as windows binaries over http. Insecure." ON)
+	# Download deps
+	if(DL_DEPS)
+		file(DOWNLOAD https://s3.amazonaws.com/webfort/webfort-deps-r1.tar.gz
+			${WFDIR}/webfort-deps.tar.gz
+			EXPECTED_MD5 24e047672dc7cd787556810620838549)
+		execute_process(COMMAND ${CMAKE_COMMAND} -E tar xzf ${WFDIR}/webfort-deps.tar.gz WORKING_DIRECTORY ${WFDIR})
+	endif()
+
+	set(SDL_DIR ${WFDIR}/SDL)
+	set(CMAKE_PREFIX_PATH ${SDL_DIR})
+	set(BOOST_ROOT ${WFDIR}/boost)
+	link_directories(${BOOST_ROOT}/lib) # Boost doesn't find everything
 endif(UNIX)
 
 # SDL Headers
@@ -56,6 +70,7 @@ include_directories(${SDL_INCLUDE_DIRS})
 
 # Boost/Asio
 set(Boost_FIND_REQUIRED TRUE)
+set(Boost_USE_STATIC_LIBS ON)
 set(WS_BOOST_LIBS system thread regex)
 find_package(Boost 1.39.0 COMPONENTS "${WS_BOOST_LIBS}")
 
