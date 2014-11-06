@@ -43,7 +43,6 @@ static bool conn_eq(conn p, conn q)
     return (!conn_lt(p, q) && !conn_lt(q, p));
 }
 
-static DFHack::color_ostream *out2;
 static unsigned char buf[64*1024];
 
 /* FIXME: input handling is long-winded enough to get its own file. */
@@ -132,6 +131,50 @@ void simkey(int down, int mod, SDL::Key sym, int unicode)
     SDL_PushEvent(&event);
 }
 
+static std::ostream* out2;
+class logbuf : public std::stringbuf {
+public:
+    logbuf(DFHack::color_ostream* i_out) : std::stringbuf()
+    {
+        dfout = i_out;
+    }
+    int sync()
+    {
+        // TODO: tidy up logs for human consumption
+        std::string o = "[WEBFORT] " + this->str();
+        size_t i = -1;
+        // remove empty lines.
+        while ((i = o.find("\n\n")) != std::string::npos) {
+            o.replace(i, 2, "\n");
+        }
+
+        *dfout << o;
+        std::cout << o;
+
+        dfout->flush();
+        std::cout.flush();
+        str("");
+        return 0;
+    }
+private:
+    DFHack::color_ostream* dfout;
+};
+
+class appbuf : public std::stringbuf {
+public:
+    appbuf(server* i_srv) : std::stringbuf()
+    {
+        srv = i_srv;
+    }
+    int sync()
+    {
+        srv->get_alog().write(ws::log::alevel::app, this->str());
+        str("");
+        return 0;
+    }
+private:
+    server* srv;
+};
 
 Client& get_client(conn hdl)
 {
@@ -181,7 +224,6 @@ void on_open(server* s, conn hdl)
     memset(cl.mod, 0, sizeof(cl.mod));
 
     clients[hdl] = cl;
-    *out2 << cl.name  << " has connected." << std::endl;
 }
 
 void tock(server* s, conn hdl)
@@ -196,7 +238,12 @@ void tock(server* s, conn hdl)
         time_t now = time(NULL);
         int played = now - active_cl.atime;
         int idle = now - active_cl.itime;
-        if (played >= TURNTIME || idle >= IDLETIME) {
+        if (played >= TURNTIME) {
+            *out2 << active_cl.name << " has run out of time." << std::endl;
+            set_active(null_conn);
+            time_left = -1;
+        } else if (idle >= IDLETIME) {
+            *out2 << active_cl.name << " has idled out." << std::endl;
             set_active(null_conn);
             time_left = -1;
         } else {
@@ -332,7 +379,7 @@ void on_message(server* s, conn hdl, message_ptr msg)
 void on_close(server* s, conn c)
 {
     Client cl = get_client(c);
-    *out2 << cl.name << " has disconnected." << std::endl;
+    // *out2 << cl.name << " has disconnected." << std::endl;
     if (conn_eq(c, active_conn)) {
         set_active(null_conn);
     }
@@ -347,7 +394,9 @@ void on_init(conn hdl, boost::asio::ip::tcp::socket & s)
 void wsthreadmain(void *out)
 {
     null_client.name = "__NOBODY";
-    out2 = (DFHack::color_ostream*) out;
+
+    logbuf lb((DFHack::color_ostream*) out);
+    std::ostream logstream(&lb);
 
     server srv;
 
@@ -365,6 +414,7 @@ void wsthreadmain(void *out)
             MAX_CLIENTS = (uint32_t)std::stol(tmp);
         }
 
+        srv.clear_access_channels(ws::log::alevel::all);
         srv.set_access_channels(
                 ws::log::alevel::connect    |
                 ws::log::alevel::disconnect |
@@ -377,6 +427,11 @@ void wsthreadmain(void *out)
                 ws::log::elevel::fatal
         );
         srv.init_asio();
+
+        srv.get_alog().set_ostream(&logstream);
+        appbuf abuf(&srv);
+        std::ostream astream(&abuf);
+        out2 = &astream;
 
         srv.set_socket_init_handler(&on_init);
         srv.set_validate_handler(&validate_open);
@@ -394,7 +449,7 @@ void wsthreadmain(void *out)
 
         srv.start_accept();
         // Start the ASIO io_service run loop
-        *out2 << "Web Fortress started on port " << PORT << "\n";
+        *out2 << "Web Fortress started on port " << PORT << std::endl;
         srv.run();
     } catch (const std::exception & e) {
         *out2 << "Webfort failed to start: " << e.what() << std::endl;
