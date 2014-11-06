@@ -242,10 +242,13 @@ void tock(server* s, conn hdl)
             *out2 << active_cl.name << " has run out of time." << std::endl;
             set_active(null_conn);
             time_left = -1;
+        /*
         } else if (idle >= IDLETIME) {
+            // FIXME: actually get rid of the code
             *out2 << active_cl.name << " has idled out." << std::endl;
             set_active(null_conn);
             time_left = -1;
+            */
         } else {
             time_left = TURNTIME - played;
         }
