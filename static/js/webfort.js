@@ -45,6 +45,7 @@ var host = params.host || document.location.hostname;
 var port = params.port || '1234';
 var tileSet = params.tiles || "Spacefox_16x16.png";
 var textSet = params.text  || "ShizzleClean.png";
+var colorscheme = params.colors || undefined;
 var wsUri = 'ws://' + host + ':' + port + '/';
 var active = false;
 
@@ -244,8 +245,12 @@ function colorize(img, cnv) {
 }
 
 function init() {
-	if (!l1 || !l2)
+	if (!(l1 && l2 && l3))
 		return;
+
+	document.body.style.backgroundColor =
+		'rgb(' + colors[0] + ',' + colors[1] + ',' + colors[2] + ')';
+
 
 	cd = document.createElement('canvas');
 	cd.width = cd.height = 1024;
@@ -271,24 +276,40 @@ function getFolder(path) {
 	return path.substring(0, path.lastIndexOf('/') + 1);
 }
 
+var root = getFolder(window.location.pathname);
+
 var l1 = false;
 var ts = document.createElement('img');
-ts.src = getFolder(window.location.pathname) + "art/" + tileSet;
-
-var l2 = false;
-var tt = document.createElement('img');
-tt.src = getFolder(window.location.pathname) + "art/" + textSet;
-
-var cd, ct;
-
+ts.src =  root + "art/" + tileSet;
 ts.onload = function() {
 	l1 = true;
 	init();
 };
+
+var l2 = false;
+var tt = document.createElement('img');
+tt.src = root + "art/" + textSet;
 tt.onload = function() {
 	l2 = true;
 	init();
 };
+
+var l3 = false;
+if (colorscheme === undefined) {
+	l3 = true;
+} else {
+	var colorReq = new XMLHttpRequest();
+	colorReq.onload = function() {
+		colors = JSON.parse(this.responseText);
+		l3 = true;
+		init();
+	};
+	colorReq.open("get", root + "colors/" + colorscheme);
+	colorReq.send();
+}
+
+var cd, ct;
+
 
 var canvas = document.getElementById('myCanvas');
 
