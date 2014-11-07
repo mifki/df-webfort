@@ -15,12 +15,13 @@
 
 typedef struct {
     std::string name;
+    std::string nick;
     unsigned char mod[256*256];
-    time_t itime;
     time_t atime;
 } Client;
 
-typedef std::map<websocketpp::connection_hdl, Client, std::owner_less<websocketpp::connection_hdl>> conn_map;
+// FIXME: use unique_ptr or the boost equivalent
+typedef std::map<websocketpp::connection_hdl, Client*, std::owner_less<websocketpp::connection_hdl>> conn_map;
 extern conn_map clients;
 
 extern unsigned char sc[256*256*5];

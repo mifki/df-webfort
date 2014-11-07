@@ -32,7 +32,7 @@ uint16_t PORT = 1234;
 conn_map clients;
 
 static ws::connection_hdl null_conn = std::weak_ptr<void>();
-static Client null_client = Client();
+static Client* null_client;
 
 static ws::connection_hdl active_conn = null_conn;
 typedef ws::connection_hdl conn;
@@ -176,7 +176,7 @@ private:
     server* srv;
 };
 
-Client& get_client(conn hdl)
+Client* get_client(conn hdl)
 {
     auto it = clients.find(hdl);
     if (it == clients.end()) {
@@ -188,12 +188,12 @@ Client& get_client(conn hdl)
 void set_active(conn newc)
 {
     if (conn_eq(active_conn, newc)) { return; }
-    Client active_cl = get_client(newc); // fail early
+    Client* newcl = get_client(newc); // fail early
     active_conn = newc;
 
     if (!conn_eq(active_conn, null_conn)) {
-        active_cl.atime = active_cl.itime = time(NULL);
-        memset(active_cl.mod, 0, sizeof(active_cl.mod));
+        newcl->atime = time(NULL);
+        memset(newcl->mod, 0, sizeof(newcl->mod));
     }
 
     if (!(*df::global::pause_state)) {
@@ -201,45 +201,51 @@ void set_active(conn newc)
         simkey(0, 0, SDL::K_SPACE, ' ');
     }
 
-    *out2 << active_cl.name << " is now active." << std::endl;
+    *out2 << newcl->name << " is now active." << std::endl;
 }
 
 bool validate_open(conn hdl)
 {
-    if (clients.size() >= MAX_CLIENTS) {
-        return false;
-    }
     // TODO: version negotiation
-    return true;
+    return clients.size() < MAX_CLIENTS;
 }
 
 void on_open(server* s, conn hdl)
 {
-    Client cl;
+    auto cl = new Client;
 
     auto con = s->get_con_from_hdl(hdl);
-    cl.name = con->get_remote_endpoint();
+    cl->name = con->get_remote_endpoint();
 
-    cl.atime = cl.itime = time(NULL);
-    memset(cl.mod, 0, sizeof(cl.mod));
+    cl->atime = time(NULL);
+    memset(cl->mod, 0, sizeof(cl->mod));
 
     clients[hdl] = cl;
+}
+
+void on_close(server* s, conn c)
+{
+    Client* cl = get_client(c);
+    if (conn_eq(c, active_conn)) {
+        set_active(null_conn);
+    }
+    clients.erase(c);
+    delete cl;
 }
 
 void tock(server* s, conn hdl)
 {
     // Tock
-    Client cl = get_client(hdl);
+    Client* cl = get_client(hdl);
     int32_t time_left = -1;
 
     if (!conn_eq(active_conn, null_conn) && clients.size() > 1)
     {
-        Client active_cl = get_client(active_conn);
+        Client* active_cl = get_client(active_conn);
         time_t now = time(NULL);
-        int played = now - active_cl.atime;
-        int idle = now - active_cl.itime;
+        int played = now - active_cl->atime;
         if (played >= TURNTIME) {
-            *out2 << active_cl.name << " has run out of time." << std::endl;
+            *out2 << active_cl->name << " has run out of time." << std::endl;
             set_active(null_conn);
             time_left = -1;
         /*
@@ -273,7 +279,7 @@ void tock(server* s, conn hdl)
     *(b++) = gps->dimx;
     *(b++) = gps->dimy;
 
-    unsigned char *mod = cl.mod;
+    unsigned char *mod = cl->mod;
 
     for (int y = 0; y < gps->dimy; y++)
     {
@@ -302,8 +308,6 @@ void tock(server* s, conn hdl)
 
 void on_message(server* s, conn hdl, message_ptr msg)
 {
-    Client cl = get_client(hdl);
-
     auto str = msg->get_payload();
     const unsigned char *mdata = (const unsigned char*) str.c_str();
     int msz = str.size();
@@ -321,8 +325,6 @@ void on_message(server* s, conn hdl, message_ptr msg)
     {
         if (conn_eq(hdl, active_conn))
         {
-            cl.itime = time(NULL);
-
             SDL::Key k = mdata[2] ? (SDL::Key)mdata[2] : mapInputCodeToSDL(mdata[1]);
             if (k != SDL::K_UNKNOWN)
             {
@@ -357,9 +359,10 @@ void on_message(server* s, conn hdl, message_ptr msg)
             }
         }
     }
-    else if (mdata[0] == 115) // ModifierEvent
+    else if (mdata[0] == 115) // refreshScreen
     {
-        memset(cl.mod, 0, sizeof(cl.mod));
+        Client* cl = get_client(hdl);
+        memset(cl->mod, 0, sizeof(cl->mod));
     }
     else if (mdata[0] == 116) // requestTurn
     {
@@ -379,16 +382,6 @@ void on_message(server* s, conn hdl, message_ptr msg)
     return;
 }
 
-void on_close(server* s, conn c)
-{
-    Client cl = get_client(c);
-    // *out2 << cl.name << " has disconnected." << std::endl;
-    if (conn_eq(c, active_conn)) {
-        set_active(null_conn);
-    }
-    clients.erase(c);
-}
-
 void on_init(conn hdl, boost::asio::ip::tcp::socket & s)
 {
     s.set_option(boost::asio::ip::tcp::no_delay(true));
@@ -396,7 +389,8 @@ void on_init(conn hdl, boost::asio::ip::tcp::socket & s)
 
 void wsthreadmain(void *out)
 {
-    null_client.name = "__NOBODY";
+    null_client = new Client;
+    null_client->name = "__NOBODY";
 
     logbuf lb((DFHack::color_ostream*) out);
     std::ostream logstream(&lb);

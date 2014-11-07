@@ -394,7 +394,7 @@ void write_tile_arrays(df::renderer *r, int x, int y, GLfloat *fg, GLfloat *bg, 
             {
                 int tiletype = block->tiletype[xx&15][yy&15];
 
-                for (int j = 0; j < overrides[s0]->size(); j++)
+                for (size_t j = 0; j < overrides[s0]->size(); j++)
                 {
                     struct override &o = (*overrides[s0])[j];
 
@@ -460,7 +460,7 @@ void write_tile_arrays(df::renderer *r, int x, int y, GLfloat *fg, GLfloat *bg, 
         }
     }
     for (auto i = clients.begin(); i != clients.end(); i++) {
-        i->second.mod[tile] = 0;
+        i->second->mod[tile] = 0;
     }
 
     // Set texture coordinates
@@ -524,7 +524,7 @@ void render(df::renderer *r)
         long dx, dy;
         void *t = &enabler->textures;
 
-        for (int j = 0; j < tilesets.size(); j++)
+        for (size_t j = 0; j < tilesets.size(); j++)
         {
             struct tileset &ts = tilesets[j];
             if (!ts.small_font_path.length())
