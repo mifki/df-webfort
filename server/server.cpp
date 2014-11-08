@@ -5,7 +5,7 @@
  * Copyright (c) 2014 mifki, ISC license.
  */
 
-#include "server.h"
+#include "shared.h"
 #include <cassert>
 
 #include <websocketpp/config/asio_no_tls.hpp>
@@ -21,21 +21,18 @@ typedef ws::server<ws::config::asio> server;
 
 typedef server::message_ptr message_ptr;
 
-#include "ColorText.h"
-#include "modules/Gui.h"
-#include "df/graphic.h"
-
 using df::global::gps;
 
-#define PLAYTIME 60*10
 #define IDLETIME 60*3
-#define MAX_CLIENTS 32
-#define PORT 1234
+// TURNTIME needs to fit at least a uint32
+int64_t TURNTIME = 600; // 10 minutes
+uint32_t MAX_CLIENTS = 32;
+uint16_t PORT = 1234;
 
 conn_map clients;
 
 static ws::connection_hdl null_conn = std::weak_ptr<void>();
-static Client null_client = Client();
+static Client* null_client;
 
 static ws::connection_hdl active_conn = null_conn;
 typedef ws::connection_hdl conn;
@@ -46,7 +43,6 @@ static bool conn_eq(conn p, conn q)
     return (!conn_lt(p, q) && !conn_lt(q, p));
 }
 
-static DFHack::color_ostream *out2;
 static unsigned char buf[64*1024];
 
 /* FIXME: input handling is long-winded enough to get its own file. */
@@ -135,8 +131,52 @@ void simkey(int down, int mod, SDL::Key sym, int unicode)
     SDL_PushEvent(&event);
 }
 
+static std::ostream* out2;
+class logbuf : public std::stringbuf {
+public:
+    logbuf(DFHack::color_ostream* i_out) : std::stringbuf()
+    {
+        dfout = i_out;
+    }
+    int sync()
+    {
+        // TODO: tidy up logs for human consumption
+        std::string o = "[WEBFORT] " + this->str();
+        size_t i = -1;
+        // remove empty lines.
+        while ((i = o.find("\n\n")) != std::string::npos) {
+            o.replace(i, 2, "\n");
+        }
 
-Client& get_client(conn hdl)
+        *dfout << o;
+        std::cout << o;
+
+        dfout->flush();
+        std::cout.flush();
+        str("");
+        return 0;
+    }
+private:
+    DFHack::color_ostream* dfout;
+};
+
+class appbuf : public std::stringbuf {
+public:
+    appbuf(server* i_srv) : std::stringbuf()
+    {
+        srv = i_srv;
+    }
+    int sync()
+    {
+        srv->get_alog().write(ws::log::alevel::app, this->str());
+        str("");
+        return 0;
+    }
+private:
+    server* srv;
+};
+
+Client* get_client(conn hdl)
 {
     auto it = clients.find(hdl);
     if (it == clients.end()) {
@@ -148,12 +188,12 @@ Client& get_client(conn hdl)
 void set_active(conn newc)
 {
     if (conn_eq(active_conn, newc)) { return; }
-    Client active_cl = get_client(newc); // fail early
+    Client* newcl = get_client(newc); // fail early
     active_conn = newc;
 
     if (!conn_eq(active_conn, null_conn)) {
-        active_cl.atime = active_cl.itime = time(NULL);
-        memset(active_cl.mod, 0, sizeof(active_cl.mod));
+        newcl->atime = time(NULL);
+        memset(newcl->mod, 0, sizeof(newcl->mod));
     }
 
     if (!(*df::global::pause_state)) {
@@ -161,49 +201,54 @@ void set_active(conn newc)
         simkey(0, 0, SDL::K_SPACE, ' ');
     }
 
-    *out2 << active_cl.name << " is now active." << std::endl;
+    *out2 << newcl->nick << " is now active." << std::endl;
 }
 
 bool validate_open(conn hdl)
 {
-    if (clients.size() >= MAX_CLIENTS) {
-        return false;
-    }
     // TODO: version negotiation
-    return true;
+    return clients.size() < MAX_CLIENTS;
 }
 
 void on_open(server* s, conn hdl)
 {
-    Client cl;
+    auto cl = new Client;
 
     auto con = s->get_con_from_hdl(hdl);
-    cl.name = con->get_remote_endpoint();
+    cl->addr = con->get_remote_endpoint();
+    cl->nick = con->get_resource().substr(1); // remove leading '/'
 
-    cl.atime = cl.itime = time(NULL);
-    memset(cl.mod, 0, sizeof(cl.mod));
+    cl->atime = time(NULL);
+    memset(cl->mod, 0, sizeof(cl->mod));
 
     clients[hdl] = cl;
-    *out2 << cl.name  << " has connected." << std::endl;
+}
+
+void on_close(server* s, conn c)
+{
+    Client* cl = get_client(c);
+    if (conn_eq(c, active_conn)) {
+        set_active(null_conn);
+    }
+    clients.erase(c);
+    delete cl;
 }
 
 void tock(server* s, conn hdl)
 {
-    // Tock
-    Client cl = get_client(hdl);
+    Client* cl = get_client(hdl);
+    Client* active_cl = get_client(active_conn);
     int32_t time_left = -1;
 
     if (!conn_eq(active_conn, null_conn) && clients.size() > 1)
     {
-        Client active_cl = get_client(active_conn);
         time_t now = time(NULL);
-        int played = now - active_cl.atime;
-        int idle = now - active_cl.itime;
-        if (played >= PLAYTIME || idle >= IDLETIME) {
-            set_active(null_conn);
-            time_left = -1;
+        int played = now - active_cl->atime;
+        if (played < TURNTIME) {
+            time_left = TURNTIME - played;
         } else {
-            time_left = PLAYTIME - played;
+            *out2 << active_cl->nick << " has run out of time." << std::endl;
+            set_active(null_conn);
         }
     }
 
@@ -226,8 +271,17 @@ void tock(server* s, conn hdl)
     *(b++) = gps->dimx;
     *(b++) = gps->dimy;
 
-    unsigned char *mod = cl.mod;
+    // [8] Length of current active player's nick, including '\0'.
+    uint8_t nick_len = active_cl->nick.length() + 1;
+    *(b++) = nick_len;
 
+    unsigned char *mod = cl->mod;
+
+    // [9-M] null-terminated string: active player's nick
+    memcpy(b, active_cl->nick.c_str(), nick_len);
+    b += nick_len;
+
+    // [M-N] Changed tiles. 5 bytes per tile
     for (int y = 0; y < gps->dimy; y++)
     {
         for (int x = 0; x < gps->dimx; x++)
@@ -255,8 +309,6 @@ void tock(server* s, conn hdl)
 
 void on_message(server* s, conn hdl, message_ptr msg)
 {
-    Client cl = get_client(hdl);
-
     auto str = msg->get_payload();
     const unsigned char *mdata = (const unsigned char*) str.c_str();
     int msz = str.size();
@@ -274,8 +326,6 @@ void on_message(server* s, conn hdl, message_ptr msg)
     {
         if (conn_eq(hdl, active_conn))
         {
-            cl.itime = time(NULL);
-
             SDL::Key k = mdata[2] ? (SDL::Key)mdata[2] : mapInputCodeToSDL(mdata[1]);
             if (k != SDL::K_UNKNOWN)
             {
@@ -310,9 +360,10 @@ void on_message(server* s, conn hdl, message_ptr msg)
             }
         }
     }
-    else if (mdata[0] == 115) // ModifierEvent
+    else if (mdata[0] == 115) // refreshScreen
     {
-        memset(cl.mod, 0, sizeof(cl.mod));
+        Client* cl = get_client(hdl);
+        memset(cl->mod, 0, sizeof(cl->mod));
     }
     else if (mdata[0] == 116) // requestTurn
     {
@@ -332,28 +383,55 @@ void on_message(server* s, conn hdl, message_ptr msg)
     return;
 }
 
-void on_close(server* s, conn c)
+void on_init(conn hdl, boost::asio::ip::tcp::socket & s)
 {
-    Client cl = get_client(c);
-    *out2 << cl.name << " has disconnected." << std::endl;
-    if (conn_eq(c, active_conn)) {
-        set_active(null_conn);
-    }
-    clients.erase(c);
+    s.set_option(boost::asio::ip::tcp::no_delay(true));
 }
 
 void wsthreadmain(void *out)
 {
-    null_client.name = "__NOBODY";
-    out2 = (DFHack::color_ostream*) out;
+    null_client = new Client;
+    null_client->nick = "__NOBODY";
+
+    logbuf lb((DFHack::color_ostream*) out);
+    std::ostream logstream(&lb);
 
     server srv;
 
+    char* tmp;
+
     try {
-        srv.set_access_channels(ws::log::alevel::all);
-        srv.clear_access_channels(ws::log::alevel::frame_payload);
+        // FIXME: bounds checking.
+        if ((tmp = getenv("WF_PORT"))) {
+            PORT = (uint16_t)std::stol(tmp);
+        }
+        if ((tmp = getenv("WF_TURNTIME"))) {
+            TURNTIME = (int64_t)std::stol(tmp);
+        }
+        if ((tmp = getenv("WF_MAX_CLIENTS"))) {
+            MAX_CLIENTS = (uint32_t)std::stol(tmp);
+        }
+
+        srv.clear_access_channels(ws::log::alevel::all);
+        srv.set_access_channels(
+                ws::log::alevel::connect    |
+                ws::log::alevel::disconnect |
+                ws::log::alevel::app
+        );
+        srv.set_error_channels(
+                ws::log::elevel::info   |
+                ws::log::elevel::warn   |
+                ws::log::elevel::rerror |
+                ws::log::elevel::fatal
+        );
         srv.init_asio();
 
+        srv.get_alog().set_ostream(&logstream);
+        appbuf abuf(&srv);
+        std::ostream astream(&abuf);
+        out2 = &astream;
+
+        srv.set_socket_init_handler(&on_init);
         srv.set_validate_handler(&validate_open);
         srv.set_open_handler(bind(&on_open, &srv, ::_1));
         srv.set_message_handler(bind(&on_message, &srv, ::_1, ::_2));
@@ -369,14 +447,14 @@ void wsthreadmain(void *out)
 
         srv.start_accept();
         // Start the ASIO io_service run loop
-        *out2 << "Web Fortress started on port " << PORT << "\n";
+        *out2 << "Web Fortress started on port " << PORT << std::endl;
         srv.run();
     } catch (const std::exception & e) {
-        *out2 << e.what() << std::endl;
+        *out2 << "Webfort failed to start: " << e.what() << std::endl;
     } catch (lib::error_code e) {
-        *out2 << e.message() << std::endl;
+        *out2 << "Webfort failed to start: " << e.message() << std::endl;
     } catch (...) {
-        *out2 << "other exception" << std::endl;
+        *out2 << "Webfort failed to start: other exception" << std::endl;
     }
     return;
 }

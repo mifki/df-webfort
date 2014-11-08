@@ -3,21 +3,43 @@
  * Copyright (c) 2014 mifki, ISC license.
  */
 
-var colors = [32, 39, 49, 0, 106, 255, 68, 184, 57, 114, 156, 251, 212, 54, 85,
-	176, 50, 255, 217, 118, 65, 170, 196, 178, 128, 151, 156, 48, 165, 255, 144,
-	255, 79, 168, 212, 255, 255, 82, 82, 255, 107, 255, 255, 232, 102, 255, 250,
-	232
+// TODO: tag colors
+var colors = [
+	32, 39, 49,
+	0, 106, 255,
+	68, 184, 57,
+	114, 156, 251,
+	212, 54, 85,
+	176, 50, 255,
+	217, 118, 65,
+	170, 196, 178,
+	128, 151, 156,
+	48, 165, 255,
+	144, 255, 79,
+	168, 212, 255,
+	255, 82, 82,
+	255, 107, 255,
+	255, 232, 102,
+	255, 250, 232
 ];
 
 function getJsonFromUrl() {
 	var query = location.search.substr(1);
 	var result = {};
+	var stored = localStorage.getItem("settings");
+	if (stored) {
+		result = JSON.parse(stored)
+	}
 	query.split("&").forEach(function(part) {
 		var item = part.split("=");
 		var key = item[0].replace('-', '_');
-		var val = decodeURIComponent(item[1]);
-		if (val === "false") {
-			val = false;
+		var val = item[1];
+
+		if (key !== 'nick') { // we want raw nicks
+			val = decodeURIComponent(val);
+			if (val === "false") {
+				val = false;
+			}
 		}
 		result[key] = val;
 	});
@@ -31,7 +53,15 @@ var host = params.host || document.location.hostname;
 var port = params.port || '1234';
 var tileSet = params.tiles || "Spacefox_16x16.png";
 var textSet = params.text  || "ShizzleClean.png";
-var wsUri = 'ws://' + host + ':' + port + '/';
+var colorscheme = params.colors || undefined;
+var nick = params.nick || "";
+
+if (params.store) {
+	delete params.store;
+	localStorage.setItem('settings', JSON.stringify(params));
+}
+
+var wsUri = 'ws://' + host + ':' + port + '/' + nick;
 var active = false;
 
 // Converts integer value in seconds to a time string, HH:MM:SS
@@ -65,6 +95,7 @@ function setStatus(text, color, onclick) {
 	}
 	st.style.backgroundColor = color;
 }
+
 function connect() {
 	setStatus('Connecting...', 'orange');
 	websocket = new WebSocket(wsUri);
@@ -106,21 +137,22 @@ function requestTurn() {
 	websocket.send(new Uint8Array([116]));
 }
 
-function renderQueueStatus(isActive, players, timeLeft) {
+function renderQueueStatus(isActive, activePlayer, players, timeLeft) {
 	if (isActive) {
 		active = true;
 		setStatus("You're in charge now! Click here to end your turn.", 'green', requestTurn);
 	} else if (timeLeft === -1) {
 		setStatus("Nobody is playing right now. Click here to ask for a turn.", 'grey', requestTurn);
 	} else {
-		setStatus("Somebody else is playing right now. Please wait warmly.", 'orange');
+		var displayedName = activePlayer || "Somebody else";
+		setStatus(displayedName +" is doing their best. Please wait warmly.", 'orange');
 	}
 	setStats(players, timeLeft);
 }
 
-function renderUpdate(ctx, data) {
+function renderUpdate(ctx, data, offset) {
 	var t = [];
-	for (var k = 8; k < data.length; k += 5) {
+	for (var k = offset; k < data.length; k += 5) {
 		var x = data[k + 0];
 		var y = data[k + 1];
 
@@ -170,9 +202,6 @@ function onMessage(evt) {
 			(data[3]<<8) |
 			(data[4]<<16) |
 			(data[5]<<24);
-		//console.log(isActive, players, timeLeft);
-		renderQueueStatus(isActive, players, timeLeft);
-
 
 		var neww = data[6] * 16;
 		var newh = data[7] * 16;
@@ -183,14 +212,23 @@ function onMessage(evt) {
 			canvas.height = newh;
 		}
 		*/
+		
+		var nickSize = data[8];
+		// this only works because we know the input is uri-encoded ascii
+		var activeNick = "";
+		for (var i = 9; (i < 9 + nickSize) && data[i] !== 0; i++) {
+			activeNick += String.fromCharCode(data[i]);
+		}
+		activeNick = decodeURIComponent(activeNick);
 
-		renderUpdate(ctx, data);
+		renderQueueStatus(isActive, activeNick, players, timeLeft);
+		renderUpdate(ctx, data, nickSize+9);
 
 		if (stats) { stats.end(); }
-	}
-	else if (data[0] == 116) {
+	} else if (data[0] == 116) {
 		spectator = (data[1]==1 ? true : false);
 	}
+
 	setTimeout(function() {
 		websocket.send(new Uint8Array([110]));
 	}, 1000 / 30);
@@ -226,14 +264,17 @@ function colorize(img, cnv) {
 					colors[c * 3 + 2] + ')';
 
 			ctx3.fillRect(i * 256 + 16 * 15, j * 256 + 16 * 15, 16, 16);
-
 		}
 	}
 }
 
 function init() {
-	if (!l1 || !l2)
+	if (!(l1 && l2 && l3))
 		return;
+
+	document.body.style.backgroundColor =
+		'rgb(' + colors[0] + ',' + colors[1] + ',' + colors[2] + ')';
+
 
 	cd = document.createElement('canvas');
 	cd.width = cd.height = 1024;
@@ -259,24 +300,40 @@ function getFolder(path) {
 	return path.substring(0, path.lastIndexOf('/') + 1);
 }
 
+var root = getFolder(window.location.pathname);
+
 var l1 = false;
 var ts = document.createElement('img');
-ts.src = getFolder(window.location.pathname) + "art/" + tileSet;
-
-var l2 = false;
-var tt = document.createElement('img');
-tt.src = getFolder(window.location.pathname) + "art/" + textSet;
-
-var cd, ct;
-
+ts.src =  root + "art/" + tileSet;
 ts.onload = function() {
 	l1 = true;
 	init();
 };
+
+var l2 = false;
+var tt = document.createElement('img');
+tt.src = root + "art/" + textSet;
 tt.onload = function() {
 	l2 = true;
 	init();
 };
+
+var l3 = false;
+if (colorscheme === undefined) {
+	l3 = true;
+} else {
+	var colorReq = new XMLHttpRequest();
+	colorReq.onload = function() {
+		colors = JSON.parse(this.responseText);
+		l3 = true;
+		init();
+	};
+	colorReq.open("get", root + "colors/" + colorscheme);
+	colorReq.send();
+}
+
+var cd, ct;
+
 
 var canvas = document.getElementById('myCanvas');
 
@@ -294,6 +351,7 @@ document.onkeydown = function(ev) {
 	if (ev.keyCode < 65) {
 		var mod = (ev.shiftKey << 1) | (ev.ctrlKey << 2) | ev.altKey;
 		var data = new Uint8Array([111, ev.keyCode, 0, mod]);
+		logKeyCode(ev);
 		websocket.send(data);
 		ev.preventDefault();
 	} else {
@@ -307,6 +365,7 @@ document.onkeypress = function(ev) {
 
 	var mod = (ev.shiftKey << 1) | (ev.ctrlKey << 2) | ev.altKey;
 	var data = new Uint8Array([111, 0, ev.charCode, mod]);
+	logCharCode(ev)
 	websocket.send(data);
 
 	ev.preventDefault();

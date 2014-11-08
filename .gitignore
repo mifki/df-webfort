@@ -1,3 +1,4 @@
-/server/df_linux/
-/server/dfhack/
-/server/build/
+/server/df_linux
+/server/dfhack
+/server/build
+/server/deps
