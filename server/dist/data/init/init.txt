@@ -1,0 +1,60 @@
+This init.txt file is built for the Web Fortress plugin.
+
+Some setting blocks are marked REQUIRED, in that anything else would break
+Webfort. Otherwise, everything else is a reasonable default, with maybe a
+comment explaining why.
+
+[SOUND:NO]
+[VOLUME:255]
+[INTRO:NO]
+
+[WINDOWED:YES]
+REQUIRED: the Screensize is hardcoded into the client for consistent viewing.
+[WINDOWEDX:80]
+[WINDOWEDY:50]
+[RESIZABLE:NO]
+
+REQUIRED: The font must be 16x16, and distinct from the GRAPHICS tileset.
+[FONT:ShizzleClean.png]
+
+REQUIRED: GRAPHICS must be on, and using a 16x16 tileset distinct from the
+standard font.
+[GRAPHICS:YES]
+[GRAPHICS_WINDOWEDX:0]
+[GRAPHICS_WINDOWEDY:0]
+[GRAPHICS_FONT:curses_square_16x16.png]
+
+REQUIRED: Webfort hooks into the GL calls made by STANDARD.
+Nothing else will work.
+[PRINT_MODE:STANDARD]
+[SINGLE_BUFFER:NO]
+
+[TRUETYPE:NO]
+[TOPMOST:NO]
+[FPS:YES]
+[FPS_CAP:100]
+
+30 is the expected refresh rate on the frontend. This can be what you'd like
+but it's set here for fun.
+[G_FPS_CAP:30]
+[ARB_SYNC:NO]
+[VSYNC:NO]
+[TEXTURE_PARAM:LINEAR]
+[PRIORITY:NORMAL]
+
+You do not want to zoom, at all. Setting ZOOM_SPEED may or may not do that, TODO
+[ZOOM_SPEED:0]
+
+There is no mouse in webfort, but you might want it.
+[MOUSE:YES]
+[MOUSE_PICTURE:NO]
+
+These are ignored by webfort.
+[KEY_HOLD_MS:250]
+[KEY_REPEAT_MS:150]
+[KEY_REPEAT_ACCEL_LIMIT:8]
+[KEY_REPEAT_ACCEL_START:10]
+
+[MACRO_MS:15]
+[RECENTER_INTERFACE_SHUTDOWN_MS:0]
+[COMPRESSED_SAVES:YES]
