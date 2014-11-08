@@ -26,6 +26,10 @@ var colors = [
 function getJsonFromUrl() {
 	var query = location.search.substr(1);
 	var result = {};
+	var stored = localStorage.getItem("settings");
+	if (stored) {
+		result = JSON.parse(stored)
+	}
 	query.split("&").forEach(function(part) {
 		var item = part.split("=");
 		var key = item[0].replace('-', '_');
@@ -51,6 +55,11 @@ var tileSet = params.tiles || "Spacefox_16x16.png";
 var textSet = params.text  || "ShizzleClean.png";
 var colorscheme = params.colors || undefined;
 var nick = params.nick || "";
+
+if (params.store) {
+	delete params.store;
+	localStorage.setItem('settings', JSON.stringify(params));
+}
 
 var wsUri = 'ws://' + host + ':' + port + '/' + nick;
 var active = false;
