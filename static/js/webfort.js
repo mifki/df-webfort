@@ -29,9 +29,13 @@ function getJsonFromUrl() {
 	query.split("&").forEach(function(part) {
 		var item = part.split("=");
 		var key = item[0].replace('-', '_');
-		var val = decodeURIComponent(item[1]);
-		if (val === "false") {
-			val = false;
+		var val = item[1];
+
+		if (key !== 'nick') { // we want raw nicks
+			val = decodeURIComponent(val);
+			if (val === "false") {
+				val = false;
+			}
 		}
 		result[key] = val;
 	});
@@ -46,7 +50,9 @@ var port = params.port || '1234';
 var tileSet = params.tiles || "Spacefox_16x16.png";
 var textSet = params.text  || "ShizzleClean.png";
 var colorscheme = params.colors || undefined;
-var wsUri = 'ws://' + host + ':' + port + '/';
+var nick = params.nick || "";
+
+var wsUri = 'ws://' + host + ':' + port + '/' + nick;
 var active = false;
 
 // Converts integer value in seconds to a time string, HH:MM:SS
@@ -122,21 +128,22 @@ function requestTurn() {
 	websocket.send(new Uint8Array([116]));
 }
 
-function renderQueueStatus(isActive, players, timeLeft) {
+function renderQueueStatus(isActive, activePlayer, players, timeLeft) {
 	if (isActive) {
 		active = true;
 		setStatus("You're in charge now! Click here to end your turn.", 'green', requestTurn);
 	} else if (timeLeft === -1) {
 		setStatus("Nobody is playing right now. Click here to ask for a turn.", 'grey', requestTurn);
 	} else {
-		setStatus("Somebody else is playing right now. Please wait warmly.", 'orange');
+		var displayedName = activePlayer || "Somebody else";
+		setStatus(displayedName +" is doing their best. Please wait warmly.", 'orange');
 	}
 	setStats(players, timeLeft);
 }
 
-function renderUpdate(ctx, data) {
+function renderUpdate(ctx, data, offset) {
 	var t = [];
-	for (var k = 8; k < data.length; k += 5) {
+	for (var k = offset; k < data.length; k += 5) {
 		var x = data[k + 0];
 		var y = data[k + 1];
 
@@ -186,7 +193,6 @@ function onMessage(evt) {
 			(data[3]<<8) |
 			(data[4]<<16) |
 			(data[5]<<24);
-		renderQueueStatus(isActive, players, timeLeft);
 
 		var neww = data[6] * 16;
 		var newh = data[7] * 16;
@@ -197,8 +203,17 @@ function onMessage(evt) {
 			canvas.height = newh;
 		}
 		*/
+		
+		var nickSize = data[8];
+		// this only works because we know the input is uri-encoded ascii
+		var activeNick = "";
+		for (var i = 9; (i < 9 + nickSize) && data[i] !== 0; i++) {
+			activeNick += String.fromCharCode(data[i]);
+		}
+		activeNick = decodeURIComponent(activeNick);
 
-		renderUpdate(ctx, data);
+		renderQueueStatus(isActive, activeNick, players, timeLeft);
+		renderUpdate(ctx, data, nickSize+9);
 
 		if (stats) { stats.end(); }
 	} else if (data[0] == 116) {

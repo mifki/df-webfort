@@ -1,5 +1,10 @@
+var nickSetting = "randomnick=1";
+if (nick) {
+	nickSetting = "nick=" + nick;
+}
+
 // Insert your own here.
-var iframeURL = "http://webchat.quakenet.org/?randomnick=1&channels=webfortress&prompt=1&uio=MT1mYWxzZSYxNj10cnVlJjEzPWZhbHNlJjE0PWZhbHNl1d";
+var iframeURL = "http://webchat.quakenet.org/?channels=webfortress&prompt=1&uio=MT1mYWxzZSYxNj10cnVlJjEzPWZhbHNlJjE0PWZhbHNl1d&" + nickSetting;
 
 var _onload = window.onload
 window.onload = function() {

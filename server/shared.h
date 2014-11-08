@@ -14,7 +14,7 @@
 #include <websocketpp/server.hpp>
 
 typedef struct {
-    std::string name;
+    std::string addr;
     std::string nick;
     unsigned char mod[256*256];
     time_t atime;

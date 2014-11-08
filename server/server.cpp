@@ -201,7 +201,7 @@ void set_active(conn newc)
         simkey(0, 0, SDL::K_SPACE, ' ');
     }
 
-    *out2 << newcl->name << " is now active." << std::endl;
+    *out2 << newcl->nick << " is now active." << std::endl;
 }
 
 bool validate_open(conn hdl)
@@ -215,7 +215,8 @@ void on_open(server* s, conn hdl)
     auto cl = new Client;
 
     auto con = s->get_con_from_hdl(hdl);
-    cl->name = con->get_remote_endpoint();
+    cl->addr = con->get_remote_endpoint();
+    cl->nick = con->get_resource().substr(1); // remove leading '/'
 
     cl->atime = time(NULL);
     memset(cl->mod, 0, sizeof(cl->mod));
@@ -235,28 +236,19 @@ void on_close(server* s, conn c)
 
 void tock(server* s, conn hdl)
 {
-    // Tock
     Client* cl = get_client(hdl);
+    Client* active_cl = get_client(active_conn);
     int32_t time_left = -1;
 
     if (!conn_eq(active_conn, null_conn) && clients.size() > 1)
     {
-        Client* active_cl = get_client(active_conn);
         time_t now = time(NULL);
         int played = now - active_cl->atime;
-        if (played >= TURNTIME) {
-            *out2 << active_cl->name << " has run out of time." << std::endl;
-            set_active(null_conn);
-            time_left = -1;
-        /*
-        } else if (idle >= IDLETIME) {
-            // FIXME: actually get rid of the code
-            *out2 << active_cl.name << " has idled out." << std::endl;
-            set_active(null_conn);
-            time_left = -1;
-            */
-        } else {
+        if (played < TURNTIME) {
             time_left = TURNTIME - played;
+        } else {
+            *out2 << active_cl->nick << " has run out of time." << std::endl;
+            set_active(null_conn);
         }
     }
 
@@ -279,8 +271,17 @@ void tock(server* s, conn hdl)
     *(b++) = gps->dimx;
     *(b++) = gps->dimy;
 
+    // [8] Length of current active player's nick, including '\0'.
+    uint8_t nick_len = active_cl->nick.length() + 1;
+    *(b++) = nick_len;
+
     unsigned char *mod = cl->mod;
 
+    // [9-M] null-terminated string: active player's nick
+    memcpy(b, active_cl->nick.c_str(), nick_len);
+    b += nick_len;
+
+    // [M-N] Changed tiles. 5 bytes per tile
     for (int y = 0; y < gps->dimy; y++)
     {
         for (int x = 0; x < gps->dimx; x++)
@@ -390,7 +391,7 @@ void on_init(conn hdl, boost::asio::ip::tcp::socket & s)
 void wsthreadmain(void *out)
 {
     null_client = new Client;
-    null_client->name = "__NOBODY";
+    null_client->nick = "__NOBODY";
 
     logbuf lb((DFHack::color_ostream*) out);
     std::ostream logstream(&lb);
