@@ -1,10 +1,17 @@
-var nickSetting = "randomnick=1";
+
+// The IRC channel to connect to. On quakenet, by default.
+var channelName = "webfortress";
+
+var nickSetting = "nick=Dwarf_.";
 if (nick) {
 	nickSetting = "nick=" + nick;
 }
 
-// Insert your own here.
-var iframeURL = "http://webchat.quakenet.org/?channels=webfortress&prompt=1&uio=MT1mYWxzZSYxNj10cnVlJjEzPWZhbHNlJjE0PWZhbHNl1d&" + nickSetting;
+var iframeURL = "http://webchat.quakenet.org/?" + 
+	"channels=webfortress&" + 
+	"prompt=1&" +
+	"uio=MT1mYWxzZSYxNj10cnVlJjEzPWZhbHNlJjE0PWZhbHNl1d&" +
+	nickSetting;
 
 var _onload = window.onload
 window.onload = function() {
