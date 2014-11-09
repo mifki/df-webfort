@@ -2,11 +2,12 @@ body {
   margin: 0;
   background-color: rgb(32,39,49);
   overflow: hidden;
+  /*height: 100vh;*/
 }
 
 .status {
-  height: 24px;
-  line-height: 24px;
+  height: 1.5em;
+  line-height: 1.5em;
   background-color: orange;
   color: white;
   font-family: Verdana;
@@ -58,35 +59,22 @@ body {
 
 .col-left {
   width: 75%;
+  height: 100vh;
 }
 
 .col-left.hide-chat {
   width: 100%;
 }
 
-.col-left:before {
-  content: "";
-  float: left;
-  /*
-   * Options include
-   * 80x60 == 4:3   == 1/0.75
-   * 80x50 == 16:10 == 1/0.625
-   * 80x45 == 16:9  == 1/0.5625
-   * 80x40 == 2:1   == 1/0.5
-   * 80x34 == 21:9~ == 1/0.425
-   * 80x25 == 16:5  == 1/0.3125 (minimum)
-   */
-  padding-bottom: 62.5%;
-}
-
-.col-left:after {
-  content: "";
-  display: table;
-  clear: both;
+.canvas-container {
+  text-align: center;
+  position: absolute;
+  bottom: 0;
+  top: 0;
+  margin-top: 1.5em;
+  width:100%;
 }
 
 canvas {
-  width:  100%;
-  height: 100%;
+  position: relative;
 }
-

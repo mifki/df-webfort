@@ -23,6 +23,8 @@ var colors = [
 	255, 250, 232
 ];
 
+var MAX_FPS = 20;
+
 function getJsonFromUrl() {
 	var query = location.search.substr(1);
 	var result = {};
@@ -63,6 +65,7 @@ if (params.store) {
 
 var wsUri = 'ws://' + host + ':' + port + '/' + nick;
 var active = false;
+var lastFrame = 0;
 
 // Converts integer value in seconds to a time string, HH:MM:SS
 function toTime(n) {
@@ -105,24 +108,9 @@ function connect() {
 	websocket.onerror = onError;
 }
 
-function fitCanvasToWindow() {
-	if (active) {
-		// FIXME: Canvas resizing meshes poorly with the chatbox.
-		//canvas.width = window.innerWidth & (~15);
-		//canvas.height = (window.innerHeight - 20) & (~15);
-
-		var data = new Uint8Array([
-				112,
-				Math.floor(canvas.width / 16),
-				Math.floor(canvas.height / 16)]);
-		websocket.send(data);
-	}
-}
-
 function onOpen(evt) {
 	setStatus('Connected', 'orange');
 
-	fitCanvasToWindow();
 	websocket.send(new Uint8Array([115]));
 
 	websocket.send(new Uint8Array([110]));
@@ -203,16 +191,10 @@ function onMessage(evt) {
 			(data[4]<<16) |
 			(data[5]<<24);
 
+		// FIXME: we shouldn't need resize data
 		var neww = data[6] * 16;
 		var newh = data[7] * 16;
-		// resizeCanvas
-		/*
-		if (neww != canvas.width || newh != canvas.height) {
-			canvas.width = neww;
-			canvas.height = newh;
-		}
-		*/
-		
+
 		var nickSize = data[8];
 		// this only works because we know the input is uri-encoded ascii
 		var activeNick = "";
@@ -224,14 +206,18 @@ function onMessage(evt) {
 		renderQueueStatus(isActive, activeNick, players, timeLeft);
 		renderUpdate(ctx, data, nickSize+9);
 
+		var now = performance.now();
+		var timeLeft = (1000 / MAX_FPS) - (now - lastFrame);
+		if (timeLeft < 4) {
+			websocket.send(new Uint8Array([110]));
+		} else {
+			setTimeout(function() {
+				websocket.send(new Uint8Array([110]));
+			}, timeLeft);
+		}
+		lastFrame = performance.now();
 		if (stats) { stats.end(); }
-	} else if (data[0] == 116) {
-		spectator = (data[1]==1 ? true : false);
 	}
-
-	setTimeout(function() {
-		websocket.send(new Uint8Array([110]));
-	}, 1000 / 30);
 }
 
 function onError(ev) {
@@ -275,7 +261,6 @@ function init() {
 	document.body.style.backgroundColor =
 		'rgb(' + colors[0] + ',' + colors[1] + ',' + colors[2] + ')';
 
-
 	cd = document.createElement('canvas');
 	cd.width = cd.height = 1024;
 	colorize(ts, cd);
@@ -283,6 +268,8 @@ function init() {
 	ct = document.createElement('canvas');
 	ct.width = ct.height = 1024;
 	colorize(tt, ct);
+
+	lastFrame = performance.now();
 
 	connect();
 }
@@ -334,7 +321,6 @@ if (colorscheme === undefined) {
 
 var cd, ct;
 
-
 var canvas = document.getElementById('myCanvas');
 
 document.onkeydown = function(ev) {
@@ -342,9 +328,9 @@ document.onkeydown = function(ev) {
 		return;
 
 	if (ev.keyCode === 91 ||
-			ev.keyCode === 18 ||
-			ev.keyCode === 17 ||
-			ev.keyCode === 16) {
+	    ev.keyCode === 18 ||
+	    ev.keyCode === 17 ||
+	    ev.keyCode === 16) {
 		return;
 	}
 
@@ -371,4 +357,20 @@ document.onkeypress = function(ev) {
 	ev.preventDefault();
 };
 
-window.onresize = fitCanvasToWindow;
+
+function fitCanvasToParent() {
+	var maxw = canvas.parentNode.offsetWidth;
+	var maxh = canvas.parentNode.offsetHeight;
+	var aspectRatio = canvas.width / canvas.height;
+
+	if (maxw / maxh < aspectRatio) {
+		canvas.style.width  = maxw + 'px';
+		canvas.style.height = "";
+	} else {
+		canvas.style.width  = "";
+		canvas.style.height = maxh + 'px';
+	}
+}
+
+window.onresize = fitCanvasToParent;
+window.onload   = fitCanvasToParent;
