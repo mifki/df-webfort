@@ -2,7 +2,6 @@ body {
   margin: 0;
   background-color: rgb(32,39,49);
   overflow: hidden;
-  /*height: 100vh;*/
 }
 
 .status {
@@ -10,7 +9,7 @@ body {
   line-height: 1.5em;
   background-color: orange;
   color: white;
-  font-family: Verdana;
+  font-family: monospace;
   cursor: pointer;
 }
 
@@ -72,7 +71,7 @@ body {
   bottom: 0;
   top: 0;
   margin-top: 1.5em;
-  width:100%;
+  width: 100%;
 }
 
 canvas {

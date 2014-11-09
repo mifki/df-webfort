@@ -30,7 +30,7 @@ function getJsonFromUrl() {
 	var result = {};
 	var stored = localStorage.getItem("settings");
 	if (stored) {
-		result = JSON.parse(stored)
+		result = JSON.parse(stored);
 	}
 	query.split("&").forEach(function(part) {
 		var item = part.split("=");
@@ -148,8 +148,8 @@ function renderUpdate(ctx, data, offset) {
 		var bg = data[k + 3] % 16;
 		var fg = data[k + 4];
 
-		var bg_x = ((bg % 4) * 256) + 15 * 16
-		var bg_y = (Math.floor(bg / 4) * 256) + 15 * 16
+		var bg_x = ((bg % 4) * 256) + 15 * 16;
+		var bg_y = (Math.floor(bg / 4) * 256) + 15 * 16;
 		ctx.drawImage(cd, bg_x, bg_y, 16, 16, x * 16, y * 16, 16, 16);
 
 		if (data[k + 3] & 64) {
@@ -207,13 +207,13 @@ function onMessage(evt) {
 		renderUpdate(ctx, data, nickSize+9);
 
 		var now = performance.now();
-		var timeLeft = (1000 / MAX_FPS) - (now - lastFrame);
-		if (timeLeft < 4) {
+		var nextFrame = (1000 / MAX_FPS) - (now - lastFrame);
+		if (nextFrame < 4) {
 			websocket.send(new Uint8Array([110]));
 		} else {
 			setTimeout(function() {
 				websocket.send(new Uint8Array([110]));
-			}, timeLeft);
+			}, nextFrame);
 		}
 		lastFrame = performance.now();
 		if (stats) { stats.end(); }
@@ -351,7 +351,7 @@ document.onkeypress = function(ev) {
 
 	var mod = (ev.shiftKey << 1) | (ev.ctrlKey << 2) | ev.altKey;
 	var data = new Uint8Array([111, 0, ev.charCode, mod]);
-	logCharCode(ev)
+	logCharCode(ev);
 	websocket.send(data);
 
 	ev.preventDefault();
