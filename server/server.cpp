@@ -196,6 +196,10 @@ void set_active(conn newc)
     if (!conn_eq(active_conn, null_conn)) {
         newcl->atime = time(NULL);
         memset(newcl->mod, 0, sizeof(newcl->mod));
+
+        std::stringstream ss;
+        ss << "Spirit " << newcl->nick << " has seized control of the fortress.";
+        show_announcement(ss.str());
     }
 
     if (!(*df::global::pause_state)) {
@@ -356,7 +360,8 @@ void on_message(server* s, conn hdl, message_ptr msg)
         if (conn_eq(hdl, active_conn))
         {
             SDL::Key k = mdata[2] ? (SDL::Key)mdata[2] : mapInputCodeToSDL(mdata[1]);
-            if (k != SDL::K_UNKNOWN)
+            bool is_safe_key = (k != SDL::K_ESCAPE || is_safe_to_escape());
+            if (k != SDL::K_UNKNOWN && is_safe_key)
             {
                 int jsmods = mdata[3];
                 int sdlmods = 0;

@@ -30,6 +30,8 @@ extern volatile bool needsresize;
 
 void wsthreadmain(void*);
 
+bool is_safe_to_escape();
+void show_announcement(std::string announcement);
 /*
  * DFHack Includes
  * The includes that were commented out were done simply by a process of

@@ -168,7 +168,30 @@ unsigned char sc[256*256*5];
 int newwidth, newheight;
 volatile bool needsresize;
 
+#define IS_SCREEN(_sc) df::_sc::_identity.is_direct_instance(ws)
 
+/* Detects if it is safe for a non-privileged user to trigger an ESC keybind.
+ * It should not be safe if it would lead to the menu normally accessible by
+ * hitting ESC in dwarf mode, as this would give access to keybind changes,
+ * fort abandonment etc.
+ */
+bool is_safe_to_escape()
+{
+    df::viewscreen * ws = Gui::getCurViewscreen();
+    if (IS_SCREEN(viewscreen_dwarfmodest) &&
+            ui->main.mode == df::ui_sidebar_mode::Default) {
+        return false;
+    }
+    // TODO: adventurer mode
+    if (IS_SCREEN(viewscreen_dungeonmodest)) {
+    }
+    return true;
+}
+
+void show_announcement(std::string announcement)
+{
+    DFHack::Gui::showAnnouncement(announcement);
+}
 
 bool is_text_tile(int x, int y, bool &is_map)
 {
@@ -180,8 +203,6 @@ bool is_text_tile(int x, int y, bool &is_map)
 
     if (!x || !y || x == w - 1 || y == h - 1)
        return has_textfont;
-
-#define IS_SCREEN(_sc) df::_sc::_identity.is_direct_instance(ws)
 
     if (IS_SCREEN(viewscreen_dwarfmodest))
     {
