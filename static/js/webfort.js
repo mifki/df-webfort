@@ -70,7 +70,7 @@ function setStatus(text, color, onclick) {
 
 function connect() {
 	setStatus('Connecting...', 'orange');
-	websocket = new WebSocket(wsUri);
+	websocket = new WebSocket(wsUri, ['WebFortress-v2.0']);
 	websocket.binaryType = 'arraybuffer';
 	websocket.onopen  = onOpen;
 	websocket.onclose = onClose;

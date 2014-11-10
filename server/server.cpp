@@ -206,11 +206,27 @@ void set_active(conn newc)
 
 bool validate_open(server* s, conn hdl)
 {
-    // TODO: version negotiation
+    auto WF_VERSION = "WebFortress-v2.0"; // FIXME: compiler flag.
     auto raw_conn = s->get_con_from_hdl(hdl);
-		
-    return clients.size() < MAX_CLIENTS &&
-	       raw_conn->get_resource() != "/__NOBODY";
+
+    std::vector<std::string> protos = raw_conn->get_requested_subprotocols();
+    if (std::find(protos.begin(), protos.end(), WF_VERSION) == protos.end()) {
+        raw_conn->set_body("Invalid subprotocol.");
+        return false;
+    }
+    raw_conn->select_subprotocol(WF_VERSION);
+
+    if (clients.size() >= MAX_CLIENTS) {
+        raw_conn->set_body("Server full.");
+        return false;
+    }
+
+    if (raw_conn->get_resource() == "/__NOBODY") {
+        raw_conn->set_body("Invalid Nickname.");
+        return false;
+    }
+
+    return true;
 }
 
 void on_open(server* s, conn hdl)
