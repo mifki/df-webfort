@@ -204,19 +204,22 @@ void set_active(conn newc)
     *out2 << newcl->nick << " is now active." << std::endl;
 }
 
-bool validate_open(conn hdl)
+bool validate_open(server* s, conn hdl)
 {
     // TODO: version negotiation
-    return clients.size() < MAX_CLIENTS;
+    auto raw_conn = s->get_con_from_hdl(hdl);
+		
+    return clients.size() < MAX_CLIENTS &&
+	       raw_conn->get_resource() != "/__NOBODY";
 }
 
 void on_open(server* s, conn hdl)
 {
     auto cl = new Client;
 
-    auto con = s->get_con_from_hdl(hdl);
-    cl->addr = con->get_remote_endpoint();
-    cl->nick = con->get_resource().substr(1); // remove leading '/'
+    auto raw_conn = s->get_con_from_hdl(hdl);
+    cl->addr = raw_conn->get_remote_endpoint();
+    cl->nick = raw_conn->get_resource().substr(1); // remove leading '/'
 
     cl->atime = time(NULL);
     memset(cl->mod, 0, sizeof(cl->mod));
@@ -240,7 +243,7 @@ void tock(server* s, conn hdl)
     Client* active_cl = get_client(active_conn);
     int32_t time_left = -1;
 
-    if (!conn_eq(active_conn, null_conn) && clients.size() > 1)
+    if (TURNTIME != 0 && !conn_eq(active_conn, null_conn) && clients.size() > 1)
     {
         time_t now = time(NULL);
         int played = now - active_cl->atime;
@@ -432,7 +435,7 @@ void wsthreadmain(void *out)
         out2 = &astream;
 
         srv.set_socket_init_handler(&on_init);
-        srv.set_validate_handler(&validate_open);
+        srv.set_validate_handler(bind(&validate_open, &srv, ::_1));
         srv.set_open_handler(bind(&on_open, &srv, ::_1));
         srv.set_message_handler(bind(&on_message, &srv, ::_1, ::_2));
         srv.set_close_handler(bind(&on_close, &srv, ::_1));

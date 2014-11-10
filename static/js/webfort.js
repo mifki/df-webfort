@@ -129,7 +129,7 @@ function renderQueueStatus(isActive, activePlayer, players, timeLeft) {
 	if (isActive) {
 		active = true;
 		setStatus("You're in charge now! Click here to end your turn.", 'green', requestTurn);
-	} else if (timeLeft === -1) {
+	} else if (activePlayer === "__NOBODY") {
 		setStatus("Nobody is playing right now. Click here to ask for a turn.", 'grey', requestTurn);
 	} else {
 		var displayedName = activePlayer || "Somebody else";
