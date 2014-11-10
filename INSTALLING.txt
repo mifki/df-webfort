@@ -1,0 +1,63 @@
+## INSTALLING ##
+
+### FROM BINARY ###
+
+If you recieved your copy of Webfort as a windows binary, this is the procedure
+to follow.
+
+1. Installing the plugin.
+
+One half of Webfort is the dfhack plugin that gets added directly to your Dwarf
+Fortress install. Because Web Fortress requires that many of your settings and
+keybindings get changed, it's recommended you install it in a new copy of Dwarf
+Fortress. You will need
+* Dwarf Fortress 0.34.11 (the last DF2012 release)
+	http://www.bay12games.com/dwarves/older_versions.html
+* DFHack 0.34.11-r5
+	https://github.com/DFHack/dfhack/releases/tag/0.34.11-r5
+
+Or just get the LNP pack, and deinstall TWBT:
+	http://dffd.wimbli.com/file.php?id=8687
+
+Once you have a copy of Dwarf Fortress with both those installed, you can just
+enter the plugin/ folder, select everything inside, and drag it into your DF
+folder. You should get asked to overwrite some files. Say "yes".
+
+After that, you can test that Web Fortress is correctly installed by running
+Dwarf Fortress. In the DFHack Console, you should see a line that says:
+
+	[WEBFORT] [2014-11-10 06:11:06] [application] Web Fortress started on port 1234
+
+If you see something like that, then Web Fortress has been properly installed.
+
+2. Running the frontend
+
+To connect to your fortress, users will need to connect to a webserver serving
+the files located in the static/ folder. You can either:
+
+* Use somebody else's hosted version of these files:
+
+	http://alloyed.me/webfort/v2.0/webfort.html?host=<YOUR IP ADDRESS>
+
+Just replace <YOUR IP ADDRESS> with your actual IP. It can be found by typing
+"What is my IP Address" into Google.
+
+* Host them yourself
+
+Any server that can host static files will do. Mongoose is easy to use.
+
+	https://code.google.com/p/mongoose/
+
+3. Port Forwarding
+
+For external users to connect to your webfort, they will need to access port
+1234, and port 8080 if you installed Mongoose. This is typically done using the
+Port Forwarding settings on your router.
+
+### From Source ###
+
+Installing from the github source is less well implemented. Following the
+COMPILING.md instructions, you should be able to install using the cmake
+install command. Then, afterward, you will need to manually copy everything
+over from the server/dist folder into your DF install. Everything else should
+be identical to the binary install.

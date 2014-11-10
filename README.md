@@ -20,26 +20,20 @@ If you would like to recieve (likely buggy) prerelease builds, email
 
 ### Compiling ###
 
-Web Fortress in known to compile with clang on linux, and VS2010 on
-Windows. See <COMPILING.md> for more.
+Web Fortress in known to compile with 32bit clang/gcc on linux, and VS2010 on
+Windows. See [COMPILING.md](COMPILING.md) for more.
 
 ### Installation ###
 
-1. Install webfort plugin as usual.
-2. Copy `ShizzleClean.png` or any other text font to `data/art` folder.
-3. Copy all `.dll` files to your DF folder.
-4. Ensure that `PRINT_MODE` is set to `STANDARD` in your `init.txt`, and set `FONT` to `ShizzleClean.png`.
-5. Open `static/js/webchat.js` and edit the `iframeURL` variable to
-   point to your preferred embeddable chat client. One possible choice
-is [qwebirc](http://qwebirc.org).
-6. Use any web server to serve files from `static` folder. You can use [Mongoose](http://cesanta.com/mongoose.shtml), just copy it to `static` folder and run.
-7. Navigate to `http://<YOUR HOST>/webfort.html` and enjoy.
+Installation is documented in [INSTALLING.txt](INSTALLING.txt), which
+should come with your release of Web Fortress.
 
 ### Authors and Links ###
 
 [Original Source](https://github.com/mifki/df-webfort) -- [Discussion](http://www.bay12forums.com/smf/index.php?topic=139167.0) -- [Report an Issue](https://github.com/Ankoku/df-webfort/issues)
 
-Copyright (c) 2014, Vitaly Pronkin <pronvit@me.com>
+Copyright (c) 2014, Vitaly Pronkin <pronvit@me.com>, Kyle McLamb
+<alloyed@tfwno.gf>
 
 Permission to use, copy, modify, and/or distribute this software for any
 purpose with or without fee is hereby granted, provided that the above
