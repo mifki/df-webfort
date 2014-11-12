@@ -32,8 +32,8 @@ should come with your release of Web Fortress.
 
 [Original Source](https://github.com/mifki/df-webfort) -- [Discussion](http://www.bay12forums.com/smf/index.php?topic=139167.0) -- [Report an Issue](https://github.com/Ankoku/df-webfort/issues)
 
-Copyright (c) 2014, Vitaly Pronkin <pronvit@me.com>, Kyle McLamb
-<alloyed@tfwno.gf>
+Copyright (c) 2014, Vitaly Pronkin <pronvit@me.com>
+Copyright (c) 2014, Kyle McLamb <alloyed@tfwno.gf>
 
 Permission to use, copy, modify, and/or distribute this software for any
 purpose with or without fee is hereby granted, provided that the above

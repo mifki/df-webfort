@@ -3,3 +3,4 @@
 /server/build
 /server/deps
 /package/
+*.zip
