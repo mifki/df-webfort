@@ -24,6 +24,11 @@ cp_prefixed() {
 cp_prefixed README.md
 cp_prefixed INSTALLING.txt
 cp_prefixed LICENSE
+echo "## CLIENT ##"  >> package/WF-USING.txt
+cat static/README.md >> package/WF-USING.txt
+echo ""              >> package/WF-USING.txt
+echo "## SERVER ##"  >> package/WF-USING.txt
+cat server/README.md >> package/WF-USING.txt
 
 zipname="webfort-$(git describe --tag).zip"
 

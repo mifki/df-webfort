@@ -17,20 +17,43 @@ for debug purposes. here are all of them:
 | `nick`      | any string          | random               | The nickname to use                       |
 | `store`     | a boolean           | undefined            | if true, store all current settings       |
 
-And an example of using them:
+A quick primer on query strings:
 
-	http://myhost/webfort.html?host=theirhost&port=80&hide-chat=true
+Anything past a ? in a URL is a query string
 
-Parameters can be stored into your browser's localStorage, where they can
+	http://<your host>/webfort.html?param=value
+
+here, the parameter `param` is being set to `value`.
+
+	http://<your host>/webfort.html?param
+
+If you don't give a value. it is assumed to be true. So here,
+`param` is true.
+
+You can also chain multiple parameters using &
+
+	http://<your host>/webfort.html?param1=1&param2=2
+
+Here, `param1` is set to `1`, and `param2` is set to `2`.
+
+A real world example:
+
+	http://<your host>/webfort.html?nick=Urist&hide-chat&tiles=ShizzleClean.png
+
+Will set your `nick` to Urist, hide the chat pane, and set the tileset
+to `ShizzleClean.png`.
+
+Parameters can be stored into your browser's `localStorage`, where they can
 persist between sessions. for example, opening:
 
-	http://myhost/webfort.html?nick=myNick&store=true
+	http://<your host>/webfort.html?nick=Urist&store
 
-will store the nick `myNick` and restore it such that
+will store the nick `Urist` and restore it such that
 
-	http://myhost/webfort.html
+	http://<your host>/webfort.html
 
-will also have the the nick `myNick`. ATM, storage can only be reset to
+will also have the the nick `Urist`. ATM, storage can only be reset to
 defaults by using the console command:
 
 	localStorage.clear()
+
