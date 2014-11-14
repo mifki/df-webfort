@@ -3,6 +3,8 @@
  * Copyright (c) 2014 mifki, ISC license.
  */
 
+/*jslint browser:true */
+
 // TODO: tag colors
 var colors = [
 	32, 39, 49,
@@ -23,31 +25,7 @@ var colors = [
 	255, 250, 232
 ];
 
-function getJsonFromUrl() {
-	var query = location.search.substr(1);
-	var result = {};
-	var stored = localStorage.getItem("settings");
-	if (stored) {
-		result = JSON.parse(stored)
-	}
-	query.split("&").forEach(function(part) {
-		var item = part.split("=");
-		var key = item[0].replace('-', '_');
-		var val = item[1];
-
-		if (key !== 'nick') { // we want raw nicks
-			val = decodeURIComponent(val);
-			if (val === "false") {
-				val = false;
-			}
-		}
-		result[key] = val;
-	});
-	return result;
-}
-
-var params = getJsonFromUrl();
-console.log(JSON.stringify(params, null, 4));
+var MAX_FPS = 20;
 
 var host = params.host || document.location.hostname;
 var port = params.port || '1234';
@@ -56,13 +34,9 @@ var textSet = params.text  || "ShizzleClean.png";
 var colorscheme = params.colors || undefined;
 var nick = params.nick || "";
 
-if (params.store) {
-	delete params.store;
-	localStorage.setItem('settings', JSON.stringify(params));
-}
-
 var wsUri = 'ws://' + host + ':' + port + '/' + nick;
 var active = false;
+var lastFrame = 0;
 
 // Converts integer value in seconds to a time string, HH:MM:SS
 function toTime(n) {
@@ -98,39 +72,39 @@ function setStatus(text, color, onclick) {
 
 function connect() {
 	setStatus('Connecting...', 'orange');
-	websocket = new WebSocket(wsUri);
+	websocket = new WebSocket(wsUri, ['WebFortress-v2.0', 'WebFortress-invalid']);
 	websocket.binaryType = 'arraybuffer';
 	websocket.onopen  = onOpen;
 	websocket.onclose = onClose;
 	websocket.onerror = onError;
 }
 
-function fitCanvasToWindow() {
-	if (active) {
-		// FIXME: Canvas resizing meshes poorly with the chatbox.
-		//canvas.width = window.innerWidth & (~15);
-		//canvas.height = (window.innerHeight - 20) & (~15);
-
-		var data = new Uint8Array([
-				112,
-				Math.floor(canvas.width / 16),
-				Math.floor(canvas.height / 16)]);
-		websocket.send(data);
-	}
-}
-
 function onOpen(evt) {
 	setStatus('Connected', 'orange');
 
-	fitCanvasToWindow();
 	websocket.send(new Uint8Array([115]));
 
 	websocket.send(new Uint8Array([110]));
 	websocket.onmessage = onMessage;
 }
 
+var isError = false;
 function onClose(evt) {
-	setStatus('Disconnected. Click to retry.', 'red', connect);
+	console.log("Disconnect code #" + evt.code + ", reason: " + evt.reason);
+	console.log(isError);
+	if (isError) {
+		isError = false;
+		setStatus('Error connecting. Click to retry', 'red', connect);
+	} else if (evt.reason) {
+		setStatus(evt.reason + ' Click to try again.', 'red', connect);
+	} else {
+		setStatus('Unknown disconnect: Click to reconnect.', 'red', connect);
+	}
+}
+
+function onError(ev) {
+	console.log("error triggered.");
+	isError = true;
 }
 
 function requestTurn() {
@@ -141,7 +115,7 @@ function renderQueueStatus(isActive, activePlayer, players, timeLeft) {
 	if (isActive) {
 		active = true;
 		setStatus("You're in charge now! Click here to end your turn.", 'green', requestTurn);
-	} else if (timeLeft === -1) {
+	} else if (activePlayer === "__NOBODY") {
 		setStatus("Nobody is playing right now. Click here to ask for a turn.", 'grey', requestTurn);
 	} else {
 		var displayedName = activePlayer || "Somebody else";
@@ -160,8 +134,8 @@ function renderUpdate(ctx, data, offset) {
 		var bg = data[k + 3] % 16;
 		var fg = data[k + 4];
 
-		var bg_x = ((bg % 4) * 256) + 15 * 16
-		var bg_y = (Math.floor(bg / 4) * 256) + 15 * 16
+		var bg_x = ((bg % 4) * 256) + 15 * 16;
+		var bg_y = (Math.floor(bg / 4) * 256) + 15 * 16;
 		ctx.drawImage(cd, bg_x, bg_y, 16, 16, x * 16, y * 16, 16, 16);
 
 		if (data[k + 3] & 64) {
@@ -203,16 +177,10 @@ function onMessage(evt) {
 			(data[4]<<16) |
 			(data[5]<<24);
 
+		// FIXME: we shouldn't need resize data
 		var neww = data[6] * 16;
 		var newh = data[7] * 16;
-		// resizeCanvas
-		/*
-		if (neww != canvas.width || newh != canvas.height) {
-			canvas.width = neww;
-			canvas.height = newh;
-		}
-		*/
-		
+
 		var nickSize = data[8];
 		// this only works because we know the input is uri-encoded ascii
 		var activeNick = "";
@@ -224,19 +192,18 @@ function onMessage(evt) {
 		renderQueueStatus(isActive, activeNick, players, timeLeft);
 		renderUpdate(ctx, data, nickSize+9);
 
+		var now = performance.now();
+		var nextFrame = (1000 / MAX_FPS) - (now - lastFrame);
+		if (nextFrame < 4) {
+			websocket.send(new Uint8Array([110]));
+		} else {
+			setTimeout(function() {
+				websocket.send(new Uint8Array([110]));
+			}, nextFrame);
+		}
+		lastFrame = performance.now();
 		if (stats) { stats.end(); }
-	} else if (data[0] == 116) {
-		spectator = (data[1]==1 ? true : false);
 	}
-
-	setTimeout(function() {
-		websocket.send(new Uint8Array([110]));
-	}, 1000 / 30);
-}
-
-function onError(ev) {
-	console.log(ev);
-	setStatus('Error', 'red');
 }
 
 function colorize(img, cnv) {
@@ -275,7 +242,6 @@ function init() {
 	document.body.style.backgroundColor =
 		'rgb(' + colors[0] + ',' + colors[1] + ',' + colors[2] + ')';
 
-
 	cd = document.createElement('canvas');
 	cd.width = cd.height = 1024;
 	colorize(ts, cd);
@@ -283,6 +249,8 @@ function init() {
 	ct = document.createElement('canvas');
 	ct.width = ct.height = 1024;
 	colorize(tt, ct);
+
+	lastFrame = performance.now();
 
 	connect();
 }
@@ -334,7 +302,6 @@ if (colorscheme === undefined) {
 
 var cd, ct;
 
-
 var canvas = document.getElementById('myCanvas');
 
 document.onkeydown = function(ev) {
@@ -342,9 +309,9 @@ document.onkeydown = function(ev) {
 		return;
 
 	if (ev.keyCode === 91 ||
-			ev.keyCode === 18 ||
-			ev.keyCode === 17 ||
-			ev.keyCode === 16) {
+	    ev.keyCode === 18 ||
+	    ev.keyCode === 17 ||
+	    ev.keyCode === 16) {
 		return;
 	}
 
@@ -365,10 +332,26 @@ document.onkeypress = function(ev) {
 
 	var mod = (ev.shiftKey << 1) | (ev.ctrlKey << 2) | ev.altKey;
 	var data = new Uint8Array([111, 0, ev.charCode, mod]);
-	logCharCode(ev)
+	logCharCode(ev);
 	websocket.send(data);
 
 	ev.preventDefault();
 };
 
-window.onresize = fitCanvasToWindow;
+
+function fitCanvasToParent() {
+	var maxw = canvas.parentNode.offsetWidth;
+	var maxh = canvas.parentNode.offsetHeight;
+	var aspectRatio = canvas.width / canvas.height;
+
+	if (maxw / maxh < aspectRatio) {
+		canvas.style.width  = maxw + 'px';
+		canvas.style.height = "";
+	} else {
+		canvas.style.width  = "";
+		canvas.style.height = maxh + 'px';
+	}
+}
+
+window.onresize = fitCanvasToParent;
+window.onload   = fitCanvasToParent;

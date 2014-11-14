@@ -28,6 +28,8 @@ using df::global::gps;
 int64_t TURNTIME = 600; // 10 minutes
 uint32_t MAX_CLIENTS = 32;
 uint16_t PORT = 1234;
+#define WF_VERSION  "WebFortress-v2.0"
+#define WF_INVALID  "WebFortress-invalid"
 
 conn_map clients;
 
@@ -204,34 +206,61 @@ void set_active(conn newc)
     *out2 << newcl->nick << " is now active." << std::endl;
 }
 
-bool validate_open(conn hdl)
+bool validate_open(server* s, conn hdl)
 {
-    // TODO: version negotiation
-    return clients.size() < MAX_CLIENTS;
+    auto raw_conn = s->get_con_from_hdl(hdl);
+
+    std::vector<std::string> protos = raw_conn->get_requested_subprotocols();
+    if (std::find(protos.begin(), protos.end(), WF_VERSION) != protos.end()) {
+        raw_conn->select_subprotocol(WF_VERSION);
+    } else if (std::find(protos.begin(), protos.end(), WF_INVALID) != protos.end()) {
+        raw_conn->select_subprotocol(WF_INVALID);
+    }
+
+    return true;
 }
 
 void on_open(server* s, conn hdl)
 {
-    auto cl = new Client;
+    if (s->get_con_from_hdl(hdl)->get_subprotocol() == WF_INVALID) {
+        s->close(hdl, 4000, "Invalid version, expected '" WF_VERSION "'.");
+        return;
+    }
 
-    auto con = s->get_con_from_hdl(hdl);
-    cl->addr = con->get_remote_endpoint();
-    cl->nick = con->get_resource().substr(1); // remove leading '/'
+    if (clients.size() >= MAX_CLIENTS) {
+        s->close(hdl, 4001, "Server is full.");
+        return;
+    }
 
+    auto raw_conn = s->get_con_from_hdl(hdl);
+    std::string nick = raw_conn->get_resource().substr(1); // remove leading '/'
+
+    if (nick == "__NOBODY") {
+        s->close(hdl, 4002, "Invalid nickname.");
+        return;
+    }
+
+    Client* cl = new Client;
+    cl->addr = raw_conn->get_remote_endpoint();
+    cl->nick = nick;
     cl->atime = time(NULL);
     memset(cl->mod, 0, sizeof(cl->mod));
 
+    assert(cl->addr);
+    assert(cl->nick);
     clients[hdl] = cl;
 }
 
 void on_close(server* s, conn c)
 {
     Client* cl = get_client(c);
-    if (conn_eq(c, active_conn)) {
-        set_active(null_conn);
+    if (cl != null_client) {
+        if (conn_eq(c, active_conn)) {
+            set_active(null_conn);
+        }
+        delete cl;
     }
     clients.erase(c);
-    delete cl;
 }
 
 void tock(server* s, conn hdl)
@@ -240,7 +269,7 @@ void tock(server* s, conn hdl)
     Client* active_cl = get_client(active_conn);
     int32_t time_left = -1;
 
-    if (!conn_eq(active_conn, null_conn) && clients.size() > 1)
+    if (TURNTIME != 0 && !conn_eq(active_conn, null_conn) && clients.size() > 1)
     {
         time_t now = time(NULL);
         int played = now - active_cl->atime;
@@ -432,7 +461,7 @@ void wsthreadmain(void *out)
         out2 = &astream;
 
         srv.set_socket_init_handler(&on_init);
-        srv.set_validate_handler(&validate_open);
+        srv.set_validate_handler(bind(&validate_open, &srv, ::_1));
         srv.set_open_handler(bind(&on_open, &srv, ::_1));
         srv.set_message_handler(bind(&on_message, &srv, ::_1, ::_2));
         srv.set_close_handler(bind(&on_close, &srv, ::_1));

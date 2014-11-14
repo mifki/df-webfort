@@ -49,7 +49,7 @@ else(UNIX)
 		-D_WEBSOCKETPP_CPP11_MEMORY_
 		-DNOMINMAX
 	)
-	option(DL_DEPS "Download dependencies as windows binaries over http. Insecure." ON)
+	option(DL_DEPS "Download dependencies as windows binaries over https." ON)
 	# Download deps
 	if(DL_DEPS)
 		message("Downloading dependencies. This may take a while.")
