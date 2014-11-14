@@ -16,9 +16,6 @@ Fortress. You will need
 * DFHack 0.34.11-r5
 	http://dffd.wimbli.com/file.php?id=8682
 
-Or just get the LNP pack, and deinstall TWBT:
-	http://dffd.wimbli.com/file.php?id=8687
-
 Then, just extract this zip file over your DF install.
 
 After that, you can test that Web Fortress is correctly installed by running
@@ -44,7 +41,7 @@ Just replace <YOUR IP ADDRESS> with your actual IP. It can be found by typing
 
 Any server that can host static files will do. Mongoose is easy to use.
 
-	https://code.google.com/p/mongoose/
+	http://cesanta.com/mongoose.shtml
 
 Just move the mongoose.exe into your web/ directory and run it. with Moongoose,
 the URL to connect to your webfort will be:

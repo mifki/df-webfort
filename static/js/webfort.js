@@ -3,6 +3,8 @@
  * Copyright (c) 2014 mifki, ISC license.
  */
 
+/*jslint browser:true */
+
 // TODO: tag colors
 var colors = [
 	32, 39, 49,
@@ -70,7 +72,7 @@ function setStatus(text, color, onclick) {
 
 function connect() {
 	setStatus('Connecting...', 'orange');
-	websocket = new WebSocket(wsUri, ['WebFortress-v2.0']);
+	websocket = new WebSocket(wsUri, ['WebFortress-v2.0', 'WebFortress-invalid']);
 	websocket.binaryType = 'arraybuffer';
 	websocket.onopen  = onOpen;
 	websocket.onclose = onClose;
@@ -86,8 +88,23 @@ function onOpen(evt) {
 	websocket.onmessage = onMessage;
 }
 
+var isError = false;
 function onClose(evt) {
-	setStatus('Disconnected. Click to retry.', 'red', connect);
+	console.log("Disconnect code #" + evt.code + ", reason: " + evt.reason);
+	console.log(isError);
+	if (isError) {
+		isError = false;
+		setStatus('Error connecting. Click to retry', 'red', connect);
+	} else if (evt.reason) {
+		setStatus(evt.reason + ' Click to try again.', 'red', connect);
+	} else {
+		setStatus('Unknown disconnect: Click to reconnect.', 'red', connect);
+	}
+}
+
+function onError(ev) {
+	console.log("error triggered.");
+	isError = true;
 }
 
 function requestTurn() {
@@ -187,11 +204,6 @@ function onMessage(evt) {
 		lastFrame = performance.now();
 		if (stats) { stats.end(); }
 	}
-}
-
-function onError(ev) {
-	console.log(ev);
-	setStatus('Error', 'red');
 }
 
 function colorize(img, cnv) {
