@@ -65,35 +65,8 @@ vector<string> split(const char *str, char c = ' ')
 
 DFHACK_PLUGIN("webfort");
 
-void (*load_multi_pdim)(void *tex,const string &filename, long *tex_pos, long dimx, long dimy, bool convert_magenta, long *disp_x, long *disp_y);
 void (*update_tile_old)(df::renderer *r, int x, int y);
 void (*render_old)(df::renderer *r);
-
-#ifdef WIN32
-__declspec(naked) void load_multi_pdim_x(void *tex, const string &filename, long *tex_pos, long dimx, long dimy, bool convert_magenta, long *disp_x, long *disp_y)
-{
-    __asm {
-        push ebp
-        mov ebp, esp
-
-        push disp_y
-        push disp_x
-        push 10h
-        push 10h
-        mov ecx, tex_pos
-        push tex
-        mov edx, filename
-
-        call load_multi_pdim
-
-        mov esp, ebp
-        pop ebp
-        ret
-    }
-}
-#else
-#define load_multi_pdim_x load_multi_pdim
-#endif
 
 #ifdef WIN32
 __declspec(naked) void render_old_x(df::renderer *r)
@@ -136,12 +109,6 @@ __declspec(naked) void update_tile_old_x(df::renderer *r, int x, int y)
 #define update_tile_old_x update_tile_old
 #endif
 
-struct tileset {
-    string small_font_path;
-    string large_font_path;
-    long small_texpos[16*16], large_texpos[16*16];
-};
-
 struct tileref {
     int tilesetidx;
     int tile;
@@ -154,8 +121,6 @@ struct override {
     struct tileref newtile;
 };
 
-
-static vector< struct tileset > tilesets;
 
 static bool enabled, texloaded;
 static bool has_textfont, has_overrides;
@@ -319,74 +284,8 @@ bool is_text_tile(int x, int y, bool &is_map)
     return true;
 }
 
-void screen_to_texid2(df::renderer *r, int x, int y, struct texture_fullid &ret) {
-    const int tile = x * gps->dimy + y;
-    const unsigned char *s = r->screen + tile*4;
-
-    int ch;
-    int bold;
-    int fg;
-    int bg;
-
-    ch   = s[0];
-    bold = (s[3] != 0) * 8;
-    fg   = (s[1] + bold) % 16;
-    bg   = s[2] % 16;
-
-    const long texpos             = r->screentexpos[tile];
-    const char addcolor           = r->screentexpos_addcolor[tile];
-    const unsigned char grayscale = r->screentexpos_grayscale[tile];
-    const unsigned char cf        = r->screentexpos_cf[tile];
-    const unsigned char cbr       = r->screentexpos_cbr[tile];
-
-    if (texpos) {
-      ret.texpos = texpos;
-      if (grayscale) {
-        ret.r = enabler->ccolor[cf][0];
-        ret.g = enabler->ccolor[cf][1];
-        ret.b = enabler->ccolor[cf][2];
-        ret.br = enabler->ccolor[cbr][0];
-        ret.bg = enabler->ccolor[cbr][1];
-        ret.bb = enabler->ccolor[cbr][2];
-      } else if (addcolor) {
-        goto use_ch;
-      } else {
-        ret.r = ret.g = ret.b = 1;
-        ret.br = ret.bg = ret.bb = 0;
-      }
-      return;
-    }
-
-  ret.texpos = enabler->fullscreen ?
-    init->font.large_font_texpos[ch] :
-    init->font.small_font_texpos[ch];
-
- use_ch:
-  ret.r = enabler->ccolor[fg][0];
-  ret.g = enabler->ccolor[fg][1];
-  ret.b = enabler->ccolor[fg][2];
-  ret.br = enabler->ccolor[bg][0];
-  ret.bg = enabler->ccolor[bg][1];
-  ret.bb = enabler->ccolor[bg][2];
-}
-
-void write_tile_arrays(df::renderer *r, int x, int y, GLfloat *fg, GLfloat *bg, GLfloat *tex)
+void write_tile_arrays(df::renderer *r, int x, int y)
 {
-    struct texture_fullid ret;
-    screen_to_texid2(r, x, y, ret);
-
-    for (int i = 0; i < 6; i++) {
-        *(fg++) = ret.r;
-        *(fg++) = ret.g;
-        *(fg++) = ret.b;
-        *(fg++) = 1;
-
-        *(bg++) = ret.br;
-        *(bg++) = ret.bg;
-        *(bg++) = ret.bb;
-        *(bg++) = 1;
-    }
-
     const int tile = x * gps->dimy + y;
     const unsigned char *s = r->screen + tile*4;
     unsigned char *ss = sc + tile*4;
@@ -395,10 +294,10 @@ void write_tile_arrays(df::renderer *r, int x, int y, GLfloat *fg, GLfloat *bg, 
     bool is_map;
     if (is_text_tile(x, y, is_map))
     {
-        ret.texpos = enabler->fullscreen ? tilesets[1].large_texpos[s[0]] : tilesets[1].small_texpos[s[0]];
-
         ss[2] |= 64;
     }
+    /*
+     * I have no idea what this stuff does, but it seems to have no effect.
     else if (is_map && has_overrides)
     {
         int s0 = s[0];
@@ -464,41 +363,21 @@ void write_tile_arrays(df::renderer *r, int x, int y, GLfloat *fg, GLfloat *bg, 
 
                     if (matched)
                     {
-                        ret.texpos = enabler->fullscreen ?
-                            tilesets[o.newtile.tilesetidx].large_texpos[o.newtile.tile] :
-                            tilesets[o.newtile.tilesetidx].small_texpos[o.newtile.tile];
-
                         break;
                     }
                 }
             }
 
             // Default
-            if (!matched && override_defs[s0].tile)
-                ret.texpos = enabler->fullscreen ?
-                    tilesets[override_defs[s0].tilesetidx].large_texpos[override_defs[s0].tile] :
-                    tilesets[override_defs[s0].tilesetidx].small_texpos[override_defs[s0].tile];
+            if (!matched && override_defs[s0].tile) {
+            }
         }
     }
+    */
+
     for (auto i = clients.begin(); i != clients.end(); i++) {
         i->second->mod[tile] = 0;
     }
-
-    // Set texture coordinates
-    gl_texpos *txt = (gl_texpos*) enabler->textures.gl_texpos;
-    *(tex++) = txt[ret.texpos].left;   // Upper left
-    *(tex++) = txt[ret.texpos].bottom;
-    *(tex++) = txt[ret.texpos].right;  // Upper right
-    *(tex++) = txt[ret.texpos].bottom;
-    *(tex++) = txt[ret.texpos].left;   // Lower left
-    *(tex++) = txt[ret.texpos].top;
-
-    *(tex++) = txt[ret.texpos].left;   // Lower left
-    *(tex++) = txt[ret.texpos].top;
-    *(tex++) = txt[ret.texpos].right;  // Upper right
-    *(tex++) = txt[ret.texpos].bottom;
-    *(tex++) = txt[ret.texpos].right;  // Lower right
-    *(tex++) = txt[ret.texpos].top;
 }
 
 #ifdef WIN32
@@ -511,23 +390,14 @@ void update_tile(df::renderer *r, int x, int y)
     df::renderer *r = enabler->renderer;
 #endif
 
+    write_tile_arrays(r, x, y);
     if (!enabled || !texloaded)
     {
         update_tile_old_x(r, x, y);
         return;
     }
 
-    GLfloat *_fg = (GLfloat*)*(GLfloat**)((char*)r+0x44);
-    GLfloat *_bg = (GLfloat*)*(GLfloat**)((char*)r+0x48);
-    GLfloat *_tex = (GLfloat*)*(GLfloat**)((char*)r+0x4c);
 
-    const int tile = x*gps->dimy + y;
-
-    GLfloat *fg  = _fg + tile * 4 * 6;
-    GLfloat *bg  = _bg + tile * 4 * 6;
-    GLfloat *tex = _tex + tile * 2 * 6;
-
-    write_tile_arrays(r, x, y, fg, bg, tex);
 }
 
 #ifdef WIN32
@@ -539,34 +409,6 @@ void render(df::renderer *r)
 #ifdef WIN32
     df::renderer *r = enabler->renderer;
 #endif
-
-    if (!texloaded)
-    {
-        long dx, dy;
-        void *t = &enabler->textures;
-
-        for (size_t j = 0; j < tilesets.size(); j++)
-        {
-            struct tileset &ts = tilesets[j];
-            if (!ts.small_font_path.length())
-                continue;
-
-            load_multi_pdim_x(t, ts.small_font_path, tilesets[j].small_texpos, 16, 16, true, &dx, &dy);
-            if (ts.large_font_path != ts.small_font_path)
-                load_multi_pdim_x(t, ts.large_font_path, tilesets[j].large_texpos, 16, 16, true, &dx, &dy);
-            else
-                memcpy(ts.large_texpos, ts.small_texpos, sizeof(ts.large_texpos));
-        }
-
-        texloaded = true;
-        gps->force_full_display_count = true;
-    }
-
-    if (needsresize)
-    {
-        enabler->renderer->grid_resize(newwidth,newheight);
-        needsresize = false;
-    }
 
     render_old_x(r);
 }
@@ -680,21 +522,7 @@ bool get_font_paths()
 
     fseed.close();
 
-    if (!(small_font_path == gsmall_font_path && large_font_path == glarge_font_path))
-    {
-        struct tileset ts;
-        ts.small_font_path = small_font_path;
-        ts.large_font_path = large_font_path;
-
-        tilesets.push_back(ts);
-        return true;
-    }
-    else
-    {
-        struct tileset ts;
-        tilesets.push_back(ts);
-        return false;
-    }
+    return true;
 }
 
 bool load_overrides()
@@ -719,10 +547,6 @@ bool load_overrides()
 
             if (tokens[0] == "TILESET")
             {
-                struct tileset ts;
-                ts.small_font_path = "data/art/" + tokens[1];
-                ts.large_font_path = "data/art/" + tokens[2];
-                tilesets.push_back(ts);
                 continue;
             }
 
@@ -815,7 +639,11 @@ bool load_overrides()
     return found;
 }
 
-#ifdef __APPLE__
+/*
+ * probably dead code. upstream has this ifdef'd to 34.11.0
+ * https://github.com/mifki/df-twbt/blob/master/tradefix.hpp
+ */
+#if defined(__APPLE__) && defined(TRADERESIZE)
 //0x0079cb2a+4 0x14 - item name length
 //0x0079cb18+3 0x14 - item name length
 
@@ -920,6 +748,7 @@ IMPLEMENT_VMETHOD_INTERPOSE(traderesize_hook, render);
 DFhackCExport command_result plugin_init ( color_ostream &out, vector <PluginCommand> &commands)
 {
     auto dflags = init->display.flag;
+    /*
     if (!dflags.is_set(init_display_flags::USE_GRAPHICS))
     {
         out.color(COLOR_RED);
@@ -938,17 +767,7 @@ DFhackCExport command_result plugin_init ( color_ostream &out, vector <PluginCom
         out.color(COLOR_RESET);
         return CR_OK;
     }
-
-#ifdef WIN32
-    load_multi_pdim = (void (*)(void *tex, const string &filename, long *tex_pos, long dimx,
-        long dimy, bool convert_magenta, long *disp_x, long *disp_y)) (0x00a52670+(Core::getInstance().vinfo->getRebaseDelta()));
-#elif defined(__APPLE__)
-    load_multi_pdim = (void (*)(void *tex, const string &filename, long *tex_pos, long dimx,
-        long dimy, bool convert_magenta, long *disp_x, long *disp_y)) 0x00cfbbb0;
-#else
-    load_multi_pdim = (void (*)(void *tex, const string &filename, long *tex_pos, long dimx,
-        long dimy, bool convert_magenta, long *disp_x, long *disp_y)) dlsym(RTLD_DEFAULT,"_ZN8textures15load_multi_pdimERKSsPlllbS2_S2_");
-#endif
+    */
 
     bad_item_flags.whole = 0;
     bad_item_flags.bits.in_building = true;
@@ -961,11 +780,6 @@ DFhackCExport command_result plugin_init ( color_ostream &out, vector <PluginCom
     bad_item_flags.bits.in_chest = true;
 
     //Main tileset
-    struct tileset ts;
-    memcpy(ts.small_texpos, df::global::init->font.small_font_texpos, sizeof(ts.small_texpos));
-    memcpy(ts.large_texpos, df::global::init->font.large_font_texpos, sizeof(ts.large_texpos));
-    tilesets.push_back(ts);
-
     memset(override_defs, 0, sizeof(struct tileref)*256);
 
     has_textfont = get_font_paths();

@@ -198,7 +198,12 @@ void set_active(conn newc)
         memset(newcl->mod, 0, sizeof(newcl->mod));
 
         std::stringstream ss;
-        ss << "Spirit " << newcl->nick << " has seized control of the fortress.";
+        if (newcl->nick == "") {
+            ss << "A wandering spirit";
+        } else {
+            ss << "The spirit " << newcl->nick;
+        }
+        ss << " has seized control of the fortress.";
         show_announcement(ss.str());
     }
 
@@ -207,7 +212,12 @@ void set_active(conn newc)
         simkey(0, 0, SDL::K_SPACE, ' ');
     }
 
-    *out2 << newcl->nick << " is now active." << std::endl;
+    if (newcl->nick == "") {
+        *out2 << newcl->addr;
+    } else {
+        *out2 << newcl->nick;
+    }
+    *out2 << " is now active." << std::endl;
 }
 
 bool validate_open(server* s, conn hdl)
