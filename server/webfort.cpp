@@ -28,6 +28,7 @@ static tthread::thread * wsthread;
 typedef float GLfloat;
 typedef unsigned int GLuint;
 
+using namespace df::enums;
 using df::global::world;
 using std::string;
 using std::vector;
@@ -156,6 +157,22 @@ bool is_safe_to_escape()
 void show_announcement(std::string announcement)
 {
     DFHack::Gui::showAnnouncement(announcement);
+}
+
+bool is_dwarf_mode()
+{
+    t_gamemodes gm;
+    World::ReadGameMode(gm);
+    return gm.g_mode == game_mode::DWARF;
+}
+
+void deify(DFHack::color_ostream* raw_out, std::string nick)
+{
+    if (is_dwarf_mode()) {
+        *raw_out << "Is OK!" << std::endl;
+        Core::getInstance().runCommand(*raw_out, "deify " + nick);
+        *raw_out << "Is DID!" << std::endl;
+    }
 }
 
 bool is_text_tile(int x, int y, bool &is_map)
@@ -748,26 +765,13 @@ IMPLEMENT_VMETHOD_INTERPOSE(traderesize_hook, render);
 DFhackCExport command_result plugin_init ( color_ostream &out, vector <PluginCommand> &commands)
 {
     auto dflags = init->display.flag;
-    /*
-    if (!dflags.is_set(init_display_flags::USE_GRAPHICS))
-    {
+    if (dflags.is_set(init_display_flags::TEXT)) {
         out.color(COLOR_RED);
-        out << "Webfort: GRAPHICS is not enabled in init.txt" << std::endl;
+        out << "Webfort: PRINT_MODE must not be TEXT" << std::endl;
+        out << "Webfort: Aborting." << std::endl;
         out.color(COLOR_RESET);
         return CR_OK;
     }
-    if (dflags.is_set(init_display_flags::RENDER_2D) ||
-        dflags.is_set(init_display_flags::ACCUM_BUFFER) ||
-        dflags.is_set(init_display_flags::FRAME_BUFFER) ||
-        dflags.is_set(init_display_flags::TEXT) ||
-        dflags.is_set(init_display_flags::PARTIAL_PRINT))
-    {
-        out.color(COLOR_RED);
-        out << "Webfort: PRINT_MODE must be set to STANDARD or VBO in init.txt" << std::endl;
-        out.color(COLOR_RESET);
-        return CR_OK;
-    }
-    */
 
     bad_item_flags.whole = 0;
     bad_item_flags.bits.in_building = true;

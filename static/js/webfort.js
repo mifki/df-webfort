@@ -1,10 +1,11 @@
 /*
- * Webfort.js
+ * webfort.js
  * Copyright (c) 2014 mifki, ISC license.
  */
 
 /*jslint browser:true */
 
+var params = getParams();
 // TODO: tag colors
 var colors = [
 	32, 39, 49,
@@ -34,7 +35,7 @@ var textSet = params.text  || "ShizzleClean.png";
 var colorscheme = params.colors || undefined;
 var nick = params.nick || "";
 
-var wsUri = 'ws://' + host + ':' + port + '/' + nick;
+var wsUri = 'ws://' + host + ':' + port + '/' + encodeURIComponent(nick);
 var active = false;
 var lastFrame = 0;
 
@@ -111,28 +112,34 @@ function requestTurn() {
 	websocket.send(new Uint8Array([116]));
 }
 
-function renderQueueStatus(isActive, activePlayer, players, timeLeft) {
-	if (isActive) {
+function renderQueueStatus(s) {
+	if (s.isActive) {
 		active = true;
 		setStatus("You're in charge now! Click here to end your turn.", 'green', requestTurn);
-	} else if (activePlayer === "__NOBODY") {
+	} else if (s.isNoPlayer) {
 		setStatus("Nobody is playing right now. Click here to ask for a turn.", 'grey', requestTurn);
 	} else {
-		var displayedName = activePlayer || "Somebody else";
+		var displayedName = s.currentPlayer || "Somebody else";
 		setStatus(displayedName +" is doing their best. Please wait warmly.", 'orange');
 	}
-	setStats(players, timeLeft);
+	setStats(s.playerCount, s.timeLeft);
 }
 
 function renderUpdate(ctx, data, offset) {
 	var t = [];
-	for (var k = offset; k < data.length; k += 5) {
-		var x = data[k + 0];
-		var y = data[k + 1];
+	var k;
+	var x;
+	var y;
+	var s;
+	var bg;
+	var fg;
+	for (k = offset; k < data.length; k += 5) {
+		x = data[k + 0];
+		y = data[k + 1];
 
-		var s = data[k + 2];
-		var bg = data[k + 3] % 16;
-		var fg = data[k + 4];
+		s = data[k + 2];
+		bg = data[k + 3] % 16;
+		fg = data[k + 4];
 
 		var bg_x = ((bg % 4) * 256) + 15 * 16;
 		var bg_y = (Math.floor(bg / 4) * 256) + 15 * 16;
@@ -148,13 +155,13 @@ function renderUpdate(ctx, data, offset) {
 	}
 
 	for (var m = 0; m < t.length; m++) {
-		var k = t[m];
-		var x = data[k + 0];
-		var y = data[k + 1];
+		k = t[m];
+		x = data[k + 0];
+		y = data[k + 1];
 
-		var s = data[k + 2];
-		var bg = data[k + 3];
-		var fg = data[k + 4];
+		s = data[k + 2];
+		bg = data[k + 3];
+		fg = data[k + 4];
 
 		var i = (s % 16) * 16 + ((fg % 4) * 256);
 		var j = Math.floor(s / 16) * 16 + (Math.floor(fg / 4) * 256);
@@ -168,29 +175,34 @@ function onMessage(evt) {
 	var ctx = canvas.getContext('2d');
 	if (data[0] === 110) {
 		if (stats) { stats.begin(); }
+		var gameStatus = {};
+		gameStatus.playerCount = data[1] & 127;
 
-		var players = data[1] & 127;
-		var isActive = data[1] & 128;
-		var timeLeft =
-			(data[2]<<0) |
-			(data[3]<<8) |
-			(data[4]<<16) |
-			(data[5]<<24);
+		gameStatus.isActive   = (data[2] & 1) !== 0;
+		gameStatus.isNoPlayer = (data[2] & 2) !== 0;
+		gameStatus.ingameTime = (data[2] & 4) !== 0;
+		console.log(gameStatus);
+
+		gameStatus.timeLeft =
+			(data[3]<<0) |
+			(data[4]<<8) |
+			(data[5]<<16) |
+			(data[6]<<24);
 
 		// FIXME: we shouldn't need resize data
-		var neww = data[6] * 16;
-		var newh = data[7] * 16;
+		var neww = data[7] * 16;
+		var newh = data[8] * 16;
 
-		var nickSize = data[8];
+		var nickSize = data[9];
 		// this only works because we know the input is uri-encoded ascii
 		var activeNick = "";
-		for (var i = 9; (i < 9 + nickSize) && data[i] !== 0; i++) {
+		for (var i = 10; (i < 10 + nickSize) && data[i] !== 0; i++) {
 			activeNick += String.fromCharCode(data[i]);
 		}
-		activeNick = decodeURIComponent(activeNick);
+		gameStatus.currentPlayer = decodeURIComponent(activeNick);
 
-		renderQueueStatus(isActive, activeNick, players, timeLeft);
-		renderUpdate(ctx, data, nickSize+9);
+		renderQueueStatus(gameStatus);
+		renderUpdate(ctx, data, nickSize+10);
 
 		var now = performance.now();
 		var nextFrame = (1000 / MAX_FPS) - (now - lastFrame);
@@ -235,8 +247,18 @@ function colorize(img, cnv) {
 	}
 }
 
+var loading = 0;
+function make_loader() {
+	loading += 1;
+	return function() {
+		loading -= 1;
+		init();
+	};
+}
+
+var cd, ct;
 function init() {
-	if (!(l1 && l2 && l3))
+	if (loading > 0)
 		return;
 
 	document.body.style.backgroundColor =
@@ -270,37 +292,25 @@ function getFolder(path) {
 
 var root = getFolder(window.location.pathname);
 
-var l1 = false;
 var ts = document.createElement('img');
 ts.src =  root + "art/" + tileSet;
-ts.onload = function() {
-	l1 = true;
-	init();
-};
+ts.onload = make_loader();
 
-var l2 = false;
 var tt = document.createElement('img');
 tt.src = root + "art/" + textSet;
-tt.onload = function() {
-	l2 = true;
-	init();
-};
+tt.onload = make_loader();
 
-var l3 = false;
-if (colorscheme === undefined) {
-	l3 = true;
-} else {
+if (colorscheme !== undefined) {
 	var colorReq = new XMLHttpRequest();
+	var colorLoader = make_loader();
 	colorReq.onload = function() {
 		colors = JSON.parse(this.responseText);
-		l3 = true;
-		init();
+		colorLoader();
 	};
 	colorReq.open("get", root + "colors/" + colorscheme);
 	colorReq.send();
 }
 
-var cd, ct;
 
 var canvas = document.getElementById('myCanvas');
 

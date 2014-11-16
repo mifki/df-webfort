@@ -23,9 +23,8 @@ typedef server::message_ptr message_ptr;
 
 using df::global::gps;
 
-#define IDLETIME 60*3
-// TURNTIME needs to fit at least a uint32
-int64_t TURNTIME = 600; // 10 minutes
+bool INGAME_TIME = 0;
+int32_t TURNTIME = 600; // 10 minutes
 uint32_t MAX_CLIENTS = 32;
 uint16_t PORT = 1234;
 #define WF_VERSION  "WebFortress-v2.0"
@@ -134,6 +133,8 @@ void simkey(int down, int mod, SDL::Key sym, int unicode)
 }
 
 static std::ostream* out2;
+static DFHack::color_ostream* raw_out;
+
 class logbuf : public std::stringbuf {
 public:
     logbuf(DFHack::color_ostream* i_out) : std::stringbuf()
@@ -158,7 +159,6 @@ public:
         str("");
         return 0;
     }
-private:
     DFHack::color_ostream* dfout;
 };
 
@@ -187,6 +187,16 @@ Client* get_client(conn hdl)
     return it->second;
 }
 
+int32_t round_timer()
+{
+    if (INGAME_TIME) {
+        return World::ReadCurrentTick(); // uint32_t
+    } else {
+        return time(NULL); // time_t, usually int32_t
+    }
+}
+
+
 void set_active(conn newc)
 {
     if (conn_eq(active_conn, newc)) { return; }
@@ -194,13 +204,14 @@ void set_active(conn newc)
     active_conn = newc;
 
     if (!conn_eq(active_conn, null_conn)) {
-        newcl->atime = time(NULL);
+        newcl->atime = round_timer();
         memset(newcl->mod, 0, sizeof(newcl->mod));
 
         std::stringstream ss;
         if (newcl->nick == "") {
             ss << "A wandering spirit";
         } else {
+            deify(raw_out, newcl->nick);
             ss << "The spirit " << newcl->nick;
         }
         ss << " has seized control of the fortress.";
@@ -218,6 +229,45 @@ void set_active(conn newc)
         *out2 << newcl->nick;
     }
     *out2 << " is now active." << std::endl;
+}
+
+#define STATUS_ROUTE "/api/status.json"
+std::string status_json()
+{
+    std::stringstream json;
+    int active_players = clients.size();
+    Client* active_cl = get_client(active_conn);
+    std::string current_player = active_cl->nick;
+    int32_t time_left = -1;
+
+    if (TURNTIME != 0 && !conn_eq(active_conn, null_conn) && clients.size() > 1)
+    {
+        time_t now = round_timer();
+        int played = now - active_cl->atime;
+        if (played < TURNTIME) {
+            time_left = TURNTIME - played;
+        }
+    }
+
+    json << "{"
+        <<  " \"active_players\": " << active_players
+        << ", \"current_player\": \"" << current_player << "\""
+        << ", \"time_left\": " << time_left
+        << " }\n";
+
+    return json.str();
+}
+
+void on_http(server* s, conn hdl)
+{
+    server::connection_ptr con = s->get_con_from_hdl(hdl);
+    std::stringstream output;
+    std::string route = con->get_resource();
+    if (route == STATUS_ROUTE) {
+        con->set_status(websocketpp::http::status_code::ok);
+        con->replace_header("Content-Type", "text/html; charset=utf-8");
+        con->set_body(status_json());
+    }
 }
 
 bool validate_open(server* s, conn hdl)
@@ -257,7 +307,7 @@ void on_open(server* s, conn hdl)
     Client* cl = new Client;
     cl->addr = raw_conn->get_remote_endpoint();
     cl->nick = nick;
-    cl->atime = time(NULL);
+    cl->atime = round_timer();
     memset(cl->mod, 0, sizeof(cl->mod));
 
     assert(cl->addr);
@@ -285,7 +335,7 @@ void tock(server* s, conn hdl)
 
     if (TURNTIME != 0 && !conn_eq(active_conn, null_conn) && clients.size() > 1)
     {
-        time_t now = time(NULL);
+        time_t now = round_timer();
         int played = now - active_cl->atime;
         if (played < TURNTIME) {
             time_left = TURNTIME - played;
@@ -300,27 +350,32 @@ void tock(server* s, conn hdl)
     *(b++) = 110;
 
     uint8_t client_count = clients.size();
-    if (conn_eq(hdl, active_conn)) {
-        client_count |= 128;
-    }
     // [1] # of connected clients. 128 bit set if client is active player.
     *(b++) = client_count;
 
-    // [2-5] time left, in seconds. -1 if no player.
+    // [2] Bitfield.
+    uint8_t bits = 0;
+    bits |= conn_eq(hdl, active_conn)?       1 : 0; // are you the active player?
+    bits |= conn_eq(null_conn, active_conn)? 2 : 0; // is nobody playing?
+    bits |= INGAME_TIME?                     4 : 0; // are we using in-game time?
+
+    *(b++) = bits;
+
+    // [3-6] time left, in seconds. -1 if no timer.
     memcpy(b, &time_left, sizeof(time_left));
     b += sizeof(time_left);
 
-    // [6-7] game dimensions
+    // [7-8] game dimensions
     *(b++) = gps->dimx;
     *(b++) = gps->dimy;
 
-    // [8] Length of current active player's nick, including '\0'.
+    // [9] Length of current active player's nick, including '\0'.
     uint8_t nick_len = active_cl->nick.length() + 1;
     *(b++) = nick_len;
 
     unsigned char *mod = cl->mod;
 
-    // [9-M] null-terminated string: active player's nick
+    // [10-M] null-terminated string: active player's nick
     memcpy(b, active_cl->nick.c_str(), nick_len);
     b += nick_len;
 
@@ -437,6 +492,7 @@ void wsthreadmain(void *out)
     null_client = new Client;
     null_client->nick = "__NOBODY";
 
+    raw_out = (DFHack::color_ostream*) out;
     logbuf lb((DFHack::color_ostream*) out);
     std::ostream logstream(&lb);
 
@@ -476,6 +532,7 @@ void wsthreadmain(void *out)
         out2 = &astream;
 
         srv.set_socket_init_handler(&on_init);
+        srv.set_http_handler(bind(&on_http, &srv, ::_1));
         srv.set_validate_handler(bind(&validate_open, &srv, ::_1));
         srv.set_open_handler(bind(&on_open, &srv, ::_1));
         srv.set_message_handler(bind(&on_message, &srv, ::_1, ::_2));

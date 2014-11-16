@@ -43,6 +43,7 @@ void show_announcement(std::string announcement);
 #include "VersionInfo.h"
 #include "modules/MapCache.h"
 #include "modules/Gui.h"
+#include "modules/World.h"
 #include "df/graphic.h"
 #include "df/enabler.h"
 #include "df/renderer.h"
@@ -57,6 +58,8 @@ void show_announcement(std::string announcement);
 #include "df/viewscreen_layer_export_play_mapst.h"
 #include "df/viewscreen_overallstatusst.h"
 #include "df/viewscreen_movieplayerst.h"
+
+using namespace DFHack;
 
 // #include "Core.h"
 // #include "Console.h"
@@ -77,4 +80,5 @@ void show_announcement(std::string announcement);
 // #include "df/viewscreen_tradegoodsst.h"
 // #include "df/viewscreen_petst.h"
 
+void deify(DFHack::color_ostream* raw_out, std::string nick);
 #endif
