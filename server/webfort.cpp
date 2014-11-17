@@ -37,16 +37,6 @@ using df::global::gps;
 using df::global::ui;
 using df::global::init;
 
-struct texture_fullid {
-    int texpos;
-    float r, g, b;
-    float br, bg, bb;
-};
-
-struct gl_texpos {
-    GLfloat left, right, top, bottom;
-};
-
 vector<string> split(const char *str, char c = ' ')
 {
     vector<string> result;
@@ -169,19 +159,27 @@ bool is_dwarf_mode()
 void deify(DFHack::color_ostream* raw_out, std::string nick)
 {
     if (is_dwarf_mode()) {
-        *raw_out << "Is OK!" << std::endl;
         Core::getInstance().runCommand(*raw_out, "deify " + nick);
-        *raw_out << "Is DID!" << std::endl;
     }
 }
 
-bool is_text_tile(int x, int y, bool &is_map)
+static bool is_text_tile(int x, int y, bool &is_map)
 {
     df::viewscreen * ws = Gui::getCurViewscreen();
 
     int32_t w = gps->dimx, h = gps->dimy;
 
     is_map = false;
+
+    if (IS_SCREEN(viewscreen_dungeonmodest))
+    {
+        //TODO
+
+        if (y >= h-2)
+            return true;
+
+        return false;
+    }
 
     if (!x || !y || x == w - 1 || y == h - 1)
        return has_textfont;
@@ -239,17 +237,6 @@ bool is_text_tile(int x, int y, bool &is_map)
         return false;
     }
 
-    if (IS_SCREEN(viewscreen_dungeonmodest))
-    {
-        //df::viewscreen_dungeonmodest *s = strict_virtual_cast<df::viewscreen_dungeonmodest>(ws);
-        //TODO
-
-        if (y >= h-2)
-            return true;
-
-        return false;
-    }
-
     if (IS_SCREEN(viewscreen_choose_start_sitest))
     {
         if (y <= 1 || y >= h - 6 || x == 0 || x >= 57)
@@ -295,8 +282,6 @@ bool is_text_tile(int x, int y, bool &is_map)
 
         return true;
     }*/
-
-    //*out2 << Core::getInstance().p->readClassName(*(void**)ws) << std::endl;
 
     return true;
 }

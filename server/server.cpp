@@ -214,7 +214,7 @@ void set_active(conn newc)
             deify(raw_out, newcl->nick);
             ss << "The spirit " << newcl->nick;
         }
-        ss << " has seized control of the fortress.";
+        ss << " has seized control.";
         show_announcement(ss.str());
     }
 
@@ -310,8 +310,8 @@ void on_open(server* s, conn hdl)
     cl->atime = round_timer();
     memset(cl->mod, 0, sizeof(cl->mod));
 
-    assert(cl->addr);
-    assert(cl->nick);
+    assert(cl->addr != "");
+    assert(cl->nick != "__NOBODY");
     clients[hdl] = cl;
 }
 
@@ -510,6 +510,9 @@ void wsthreadmain(void *out)
         }
         if ((tmp = getenv("WF_MAX_CLIENTS"))) {
             MAX_CLIENTS = (uint32_t)std::stol(tmp);
+        }
+        if ((tmp = getenv("WF_INGAME_TIME"))) {
+            INGAME_TIME = std::stol(tmp) != 0;
         }
 
         srv.clear_access_channels(ws::log::alevel::all);

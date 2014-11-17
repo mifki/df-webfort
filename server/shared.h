@@ -41,6 +41,7 @@ void show_announcement(std::string announcement);
 
 #include "PluginManager.h"
 #include "VersionInfo.h"
+#include "VTableInterpose.h"
 #include "modules/MapCache.h"
 #include "modules/Gui.h"
 #include "modules/World.h"
@@ -49,6 +50,7 @@ void show_announcement(std::string announcement);
 #include "df/renderer.h"
 #include "df/building.h"
 #include "df/buildings_other_id.h"
+#include "df/unit.h"
 #include "df/items_other_id.h"
 #include "df/viewscreen_dwarfmodest.h"
 #include "df/viewscreen_setupadventurest.h"
@@ -64,7 +66,6 @@ using namespace DFHack;
 // #include "Core.h"
 // #include "Console.h"
 // #include "Export.h"
-// #include "VTableInterpose.h"
 // #include "modules/Maps.h"
 // #include "modules/World.h"
 // #include "modules/Screen.h"

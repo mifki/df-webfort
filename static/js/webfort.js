@@ -95,11 +95,11 @@ function onClose(evt) {
 	console.log(isError);
 	if (isError) {
 		isError = false;
-		setStatus('Error connecting. Click to retry', 'red', connect);
+		setStatus('Connection Error. Click to retry', 'red', connect);
 	} else if (evt.reason) {
 		setStatus(evt.reason + ' Click to try again.', 'red', connect);
 	} else {
-		setStatus('Unknown disconnect: Click to reconnect.', 'red', connect);
+		setStatus('Unknown disconnect: Check the console (Ctrl-Shift-J), then click to reconnect.', 'red', connect);
 	}
 }
 
