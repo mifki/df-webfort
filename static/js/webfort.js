@@ -49,7 +49,37 @@ function toTime(n) {
 	       ("0" + s).slice(-2);
 }
 
-function setStats(userCount, timeLeft) {
+function plural(n, unit)
+{
+	if (n === 1) {
+		return n + " " + unit;
+	}
+	return n + " " + unit + "s";
+}
+
+// Converts an integer value in ticks to the dwarven calendar
+function toGameTime(n) {
+	var years = Math.floor(n / 12 / 28 / 1200);
+	var months = Math.floor(n / 28 / 1200) % 12;
+	var days = Math.floor(n / 1200) % 28;
+	var ticks = n % 1200;
+
+	var times = [];
+	if (years > 0) {
+		times.push(plural(years, "year"));
+	}
+	if (months > 0) {
+		times.push(plural(months, "month"));
+	} else if (days > 0) {
+		times.push(plural(days, "day"));
+	} else {
+		times.push(plural(ticks, "tick"));
+	}
+	
+	return times.join(", ");
+}
+
+function setStats(userCount, ingame_time, timeLeft) {
 	var u = document.getElementById('user-count');
 	var t = document.getElementById('time-left');
 	u.innerHTML = String(userCount) + " <i class='fa fa-users'></i>";
@@ -57,7 +87,8 @@ function setStats(userCount, timeLeft) {
 	if (timeLeft === -1) {
 		t.innerHTML = "";
 	} else {
-		t.innerHTML = toTime(timeLeft)  + " <i class='fa fa-clock-o'></i>";
+		t.innerHTML = (ingame_time? toGameTime(timeLeft) : toTime(timeLeft)) +
+			" <i class='fa fa-clock-o'></i>";
 	}
 }
 
@@ -122,7 +153,7 @@ function renderQueueStatus(s) {
 		var displayedName = s.currentPlayer || "Somebody else";
 		setStatus(displayedName +" is doing their best. Please wait warmly.", 'orange');
 	}
-	setStats(s.playerCount, s.timeLeft);
+	setStats(s.playerCount, s.ingameTime, s.timeLeft);
 }
 
 function renderUpdate(ctx, data, offset) {
