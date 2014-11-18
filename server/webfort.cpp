@@ -146,7 +146,7 @@ bool is_safe_to_escape()
 
 void show_announcement(std::string announcement)
 {
-    DFHack::Gui::showAnnouncement(announcement);
+    DFHack::Gui::showPopupAnnouncement(announcement);
 }
 
 bool is_dwarf_mode()

@@ -132,7 +132,7 @@ void simkey(int down, int mod, SDL::Key sym, int unicode)
     SDL_PushEvent(&event);
 }
 
-static std::ostream* out2;
+static std::ostream* out;
 static DFHack::color_ostream* raw_out;
 
 class logbuf : public std::stringbuf {
@@ -144,11 +144,15 @@ public:
     int sync()
     {
         // TODO: tidy up logs for human consumption
-        std::string o = "[WEBFORT] " + this->str();
+        std::string o = this->str();
         size_t i = -1;
         // remove empty lines.
         while ((i = o.find("\n\n")) != std::string::npos) {
             o.replace(i, 2, "\n");
+        }
+        // Remove uninformative [application]
+        while ((i = o.find("[application]")) != std::string::npos) {
+            o.replace(i, 2, "[WEBFORT]");
         }
 
         *dfout << o;
@@ -224,11 +228,16 @@ void set_active(conn newc)
     }
 
     if (newcl->nick == "") {
-        *out2 << newcl->addr;
+        *out << newcl->addr;
     } else {
-        *out2 << newcl->nick;
+        *out << newcl->nick;
     }
-    *out2 << " is now active." << std::endl;
+    *out << " is now active." << std::endl;
+}
+
+std::string str(std::string s)
+{
+    return "\"" + s + "\"";
 }
 
 #define STATUS_ROUTE "/api/status.json"
@@ -239,8 +248,9 @@ std::string status_json()
     Client* active_cl = get_client(active_conn);
     std::string current_player = active_cl->nick;
     int32_t time_left = -1;
+    bool is_somebody_playing = !conn_eq(active_conn, null_conn);
 
-    if (TURNTIME != 0 && !conn_eq(active_conn, null_conn) && clients.size() > 1)
+    if (TURNTIME != 0 && is_somebody_playing && clients.size() > 1)
     {
         time_t now = round_timer();
         int played = now - active_cl->atime;
@@ -249,10 +259,12 @@ std::string status_json()
         }
     }
 
-    json << "{"
+    json << std::boolalpha << "{"
         <<  " \"active_players\": " << active_players
-        << ", \"current_player\": \"" << current_player << "\""
+        << ", \"current_player\": " << str(current_player)
         << ", \"time_left\": " << time_left
+        << ", \"is_somebody_playing\": " << is_somebody_playing
+        << ", \"using_ingame_time\": " << INGAME_TIME
         << " }\n";
 
     return json.str();
@@ -340,7 +352,7 @@ void tock(server* s, conn hdl)
         if (played < TURNTIME) {
             time_left = TURNTIME - played;
         } else {
-            *out2 << active_cl->nick << " has run out of time." << std::endl;
+            *out << active_cl->nick << " has run out of time." << std::endl;
             set_active(null_conn);
         }
     }
@@ -473,9 +485,7 @@ void on_message(server* s, conn hdl, message_ptr msg)
         } else if (conn_eq(active_conn, null_conn)) {
             set_active(hdl);
         }
-    }
-    else
-    {
+    } else {
         tock(s, hdl);
     }
 
@@ -487,13 +497,13 @@ void on_init(conn hdl, boost::asio::ip::tcp::socket & s)
     s.set_option(boost::asio::ip::tcp::no_delay(true));
 }
 
-void wsthreadmain(void *out)
+void wsthreadmain(void *i_raw_out)
 {
     null_client = new Client;
     null_client->nick = "__NOBODY";
 
-    raw_out = (DFHack::color_ostream*) out;
-    logbuf lb((DFHack::color_ostream*) out);
+    raw_out = (DFHack::color_ostream*) i_raw_out;
+    logbuf lb((DFHack::color_ostream*) i_raw_out);
     std::ostream logstream(&lb);
 
     server srv;
@@ -532,7 +542,7 @@ void wsthreadmain(void *out)
         srv.get_alog().set_ostream(&logstream);
         appbuf abuf(&srv);
         std::ostream astream(&abuf);
-        out2 = &astream;
+        out = &astream;
 
         srv.set_socket_init_handler(&on_init);
         srv.set_http_handler(bind(&on_http, &srv, ::_1));
@@ -544,21 +554,21 @@ void wsthreadmain(void *out)
         lib::error_code ec;
         srv.listen(PORT, ec);
         if (ec) {
-            *out2 << "Unable to start Webfort on port " << PORT
+            *out << "Unable to start Webfort on port " << PORT
                   << ", is it being used somehere else?" << std::endl;
             return;
         }
 
         srv.start_accept();
         // Start the ASIO io_service run loop
-        *out2 << "Web Fortress started on port " << PORT << std::endl;
+        *out << "Web Fortress started on port " << PORT << std::endl;
         srv.run();
     } catch (const std::exception & e) {
-        *out2 << "Webfort failed to start: " << e.what() << std::endl;
+        *out << "Webfort failed to start: " << e.what() << std::endl;
     } catch (lib::error_code e) {
-        *out2 << "Webfort failed to start: " << e.message() << std::endl;
+        *out << "Webfort failed to start: " << e.message() << std::endl;
     } catch (...) {
-        *out2 << "Webfort failed to start: other exception" << std::endl;
+        *out << "Webfort failed to start: other exception" << std::endl;
     }
     return;
 }
