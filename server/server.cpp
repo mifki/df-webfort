@@ -250,8 +250,7 @@ std::string status_json()
     int32_t time_left = -1;
     bool is_somebody_playing = !conn_eq(active_conn, null_conn);
 
-    if (TURNTIME != 0 && is_somebody_playing && clients.size() > 1)
-    {
+    if (TURNTIME != 0 && is_somebody_playing && clients.size() > 1) {
         time_t now = round_timer();
         int played = now - active_cl->atime;
         if (played < TURNTIME) {
@@ -345,8 +344,7 @@ void tock(server* s, conn hdl)
     Client* active_cl = get_client(active_conn);
     int32_t time_left = -1;
 
-    if (TURNTIME != 0 && !conn_eq(active_conn, null_conn) && clients.size() > 1)
-    {
+    if (TURNTIME != 0 && !conn_eq(active_conn, null_conn) && clients.size() > 1) {
         time_t now = round_timer();
         int played = now - active_cl->atime;
         if (played < TURNTIME) {
@@ -392,10 +390,8 @@ void tock(server* s, conn hdl)
     b += nick_len;
 
     // [M-N] Changed tiles. 5 bytes per tile
-    for (int y = 0; y < gps->dimy; y++)
-    {
-        for (int x = 0; x < gps->dimx; x++)
-        {
+    for (int y = 0; y < gps->dimy; y++) {
+        for (int x = 0; x < gps->dimx; x++) {
             const int tile = x * gps->dimy + y;
             unsigned char *s = sc + tile*4;
             if (mod[tile])
@@ -423,38 +419,29 @@ void on_message(server* s, conn hdl, message_ptr msg)
     const unsigned char *mdata = (const unsigned char*) str.c_str();
     int msz = str.size();
 
-    if (mdata[0] == 112 && msz == 3) // ResizeEvent
-    {
-        if (conn_eq(hdl, active_conn))
-        {
+    if (mdata[0] == 112 && msz == 3) { // ResizeEvent
+        if (conn_eq(hdl, active_conn)) {
             newwidth = mdata[1];
             newheight = mdata[2];
             needsresize = true;
         }
-    }
-    else if (mdata[0] == 111 && msz == 4) // KeyEvent
-    {
-        if (conn_eq(hdl, active_conn))
-        {
+    } else if (mdata[0] == 111 && msz == 4) { // KeyEvent
+        if (conn_eq(hdl, active_conn)) {
             SDL::Key k = mdata[2] ? (SDL::Key)mdata[2] : mapInputCodeToSDL(mdata[1]);
             bool is_safe_key = (k != SDL::K_ESCAPE || is_safe_to_escape());
-            if (k != SDL::K_UNKNOWN && is_safe_key)
-            {
+            if (k != SDL::K_UNKNOWN && is_safe_key) {
                 int jsmods = mdata[3];
                 int sdlmods = 0;
 
-                if (jsmods & 1)
-                {
+                if (jsmods & 1) {
                     simkey(1, 0, SDL::K_LALT, 0);
                     sdlmods |= SDL::KMOD_ALT;
                 }
-                if (jsmods & 2)
-                {
+                if (jsmods & 2) {
                     simkey(1, 0, SDL::K_LSHIFT, 0);
                     sdlmods |= SDL::KMOD_SHIFT;
                 }
-                if (jsmods & 4)
-                {
+                if (jsmods & 4) {
                     simkey(1, 0, SDL::K_LCTRL, 0);
                     sdlmods |= SDL::KMOD_CTRL;
                 }
@@ -462,22 +449,21 @@ void on_message(server* s, conn hdl, message_ptr msg)
                 simkey(1, sdlmods, k, mdata[2]);
                 simkey(0, sdlmods, k, mdata[2]);
 
-                if (jsmods & 1)
+                if (jsmods & 1) {
                     simkey(0, 0, SDL::K_LALT, 0);
-                if (jsmods & 2)
+                }
+                if (jsmods & 2) {
                     simkey(0, 0, SDL::K_LSHIFT, 0);
-                if (jsmods & 4)
+                }
+                if (jsmods & 4) {
                     simkey(0, 0, SDL::K_LCTRL, 0);
+                }
             }
         }
-    }
-    else if (mdata[0] == 115) // refreshScreen
-    {
+    } else if (mdata[0] == 115) { // refreshScreen
         Client* cl = get_client(hdl);
         memset(cl->mod, 0, sizeof(cl->mod));
-    }
-    else if (mdata[0] == 116) // requestTurn
-    {
+    } else if (mdata[0] == 116) { // requestTurn
         assert(conn_eq(active_conn, active_conn));
         assert(!conn_eq(hdl, null_conn));
         if (conn_eq(hdl, active_conn)) {

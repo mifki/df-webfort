@@ -41,12 +41,12 @@ vector<string> split(const char *str, char c = ' ')
 {
     vector<string> result;
 
-    do
-    {
+    do {
         const char *begin = str;
 
-        while(*str != c && *str)
+        while(*str != c && *str) {
             str++;
+        }
 
         result.push_back(string(begin, str));
     } while (0 != *str++);
@@ -163,9 +163,14 @@ void deify(DFHack::color_ostream* raw_out, std::string nick)
     }
 }
 
+/*
+ * The source of this function is taken from mifki's TWBT plugin.
+ * If you want to edit it, edit it upstream and then diff it here.
+ */
 static bool is_text_tile(int x, int y, bool &is_map)
 {
     df::viewscreen * ws = Gui::getCurViewscreen();
+    assert(ws != NULL);
 
     int32_t w = gps->dimx, h = gps->dimy;
 
@@ -294,88 +299,9 @@ void write_tile_arrays(df::renderer *r, int x, int y)
     *(unsigned int*)ss = *(unsigned int*)s;
 
     bool is_map;
-    if (is_text_tile(x, y, is_map))
-    {
+    if (is_text_tile(x, y, is_map)) {
         ss[2] |= 64;
     }
-    /*
-     * I have no idea what this stuff does, but it seems to have no effect.
-    else if (is_map && has_overrides)
-    {
-        int s0 = s[0];
-        if (overrides[s0])
-        {
-            int xx = *df::global::window_x + x-1;
-            int yy = *df::global::window_y + y-1;
-            int zz = *df::global::window_z;
-            bool matched = false;
-
-            // No block - no items/buildings/tiletype
-            df::map_block *block = Maps::getTileBlock(xx, yy, zz);
-            if (block)
-            {
-                int tiletype = block->tiletype[xx&15][yy&15];
-
-                for (size_t j = 0; j < overrides[s0]->size(); j++)
-                {
-                    struct override &o = (*overrides[s0])[j];
-
-                    if (o.tiletype)
-                    {
-                        if (tiletype == o.type)
-                            matched = true;
-                    }
-                    else if (o.building)
-                    {
-                        auto ilist = world->buildings.other[o.id];
-                        for (auto it = ilist.begin(); it != ilist.end(); it++)
-                        {
-                            df::building *bld = *it;
-
-                            if (zz != bld->z || xx < bld->x1 || xx > bld->x2 || yy < bld->y1 || yy > bld->y2)
-                                continue;
-                            if (o.type != -1 && bld->getType() != o.type)
-                                continue;
-                            if (o.subtype != -1 && bld->getSubtype() != o.subtype)
-                                continue;
-
-                            matched = true;
-                            break;
-                        }
-                    }
-                    else
-                    {
-                        auto ilist = world->items.other[o.id];
-                        for (auto it = ilist.begin(); it != ilist.end(); it++)
-                        {
-                            df::item *item = *it;
-                            if (!(zz == item->pos.z && xx == item->pos.x && yy == item->pos.y))
-                                continue;
-                            if (item->flags.whole & bad_item_flags.whole)
-                                continue;
-                            if (o.type != -1 && item->getType() != o.type)
-                                continue;
-                            if (o.subtype != -1 && item->getSubtype() != o.subtype)
-                                continue;
-
-                            matched = true;
-                            break;
-                        }
-                    }
-
-                    if (matched)
-                    {
-                        break;
-                    }
-                }
-            }
-
-            // Default
-            if (!matched && override_defs[s0].tile) {
-            }
-        }
-    }
-    */
 
     for (auto i = clients.begin(); i != clients.end(); i++) {
         i->second->mod[tile] = 0;
@@ -393,8 +319,7 @@ void update_tile(df::renderer *r, int x, int y)
 #endif
 
     write_tile_arrays(r, x, y);
-    if (!enabled || !texloaded)
-    {
+    if (!enabled || !texloaded) {
         update_tile_old_x(r, x, y);
         return;
     }
@@ -478,12 +403,10 @@ bool get_font_paths()
     string large_font_path, glarge_font_path;
 
     std::ifstream fseed("data/init/init.txt");
-    if(fseed.is_open())
-    {
+    if(fseed.is_open()) {
         string str;
 
-        while(std::getline(fseed,str))
-        {
+        while(std::getline(fseed,str)) {
             size_t b = str.find("[");
             size_t e = str.rfind("]");
 
@@ -496,26 +419,22 @@ bool get_font_paths()
             if (tokens.size() != 2)
                 continue;
 
-            if(tokens[0] == "FONT")
-            {
+            if(tokens[0] == "FONT") {
                 small_font_path = "data/art/" + tokens[1];
                 continue;
             }
 
-            if(tokens[0] == "FULLFONT")
-            {
+            if(tokens[0] == "FULLFONT") {
                 large_font_path = "data/art/" + tokens[1];
                 continue;
             }
 
-            if(tokens[0] == "GRAPHICS_FONT")
-            {
+            if(tokens[0] == "GRAPHICS_FONT") {
                 gsmall_font_path = "data/art/" + tokens[1];
                 continue;
             }
 
-            if(tokens[0] == "GRAPHICS_FULLFONT")
-            {
+            if(tokens[0] == "GRAPHICS_FULLFONT") {
                 glarge_font_path = "data/art/" + tokens[1];
                 continue;
             }
@@ -532,12 +451,10 @@ bool load_overrides()
     bool found = false;
 
     std::ifstream fseed("data/init/overrides.txt");
-    if(fseed.is_open())
-    {
+    if(fseed.is_open()) {
         string str;
 
-        while(std::getline(fseed,str))
-        {
+        while(std::getline(fseed,str)) {
             size_t b = str.find("[");
             size_t e = str.rfind("]");
 
@@ -547,15 +464,12 @@ bool load_overrides()
             str = str.substr(b+1, e-1);
             vector<string> tokens = split(str.c_str(), ':');
 
-            if (tokens[0] == "TILESET")
-            {
+            if (tokens[0] == "TILESET") {
                 continue;
             }
 
-            if (tokens[0] == "OVERRIDE")
-            {
-                if (tokens.size() == 6)
-                {
+            if (tokens[0] == "OVERRIDE") {
+                if (tokens.size() == 6) {
                     int tile = atoi(tokens[1].c_str());
                     if (tokens[2] != "T")
                         continue;
@@ -575,16 +489,13 @@ bool load_overrides()
                     if (!overrides[tile])
                         overrides[tile] = new vector< struct override >;
                     overrides[tile]->push_back(o);
-                }
-                else if (tokens.size() == 8)
-                {
+                } else if (tokens.size() == 8) {
                     int tile = atoi(tokens[1].c_str());
 
                     struct override o;
                     o.tiletype = false;
                     o.building = (tokens[2] == "B");
-                    if (o.building)
-                    {
+                    if (o.building) {
                         buildings_other_id::buildings_other_id id;
                         if (find_enum_item(&id, tokens[3]))
                             o.id = id;
@@ -596,9 +507,7 @@ bool load_overrides()
                             o.type = type;
                         else
                             o.type = -1;
-                    }
-                    else
-                    {
+                    } else {
                         items_other_id::items_other_id id;
                         if (find_enum_item(&id, tokens[3]))
                             o.id = id;
@@ -623,9 +532,8 @@ bool load_overrides()
                     if (!overrides[tile])
                         overrides[tile] = new vector< struct override >;
                     overrides[tile]->push_back(o);
-                }
-                else if (tokens.size() == 4)
-                {
+
+                } else if (tokens.size() == 4) {
                     int tile = atoi(tokens[1].c_str());
                     override_defs[tile].tilesetidx = atoi(tokens[2].c_str());
                     override_defs[tile].tile = atoi(tokens[3].c_str());
@@ -745,7 +653,7 @@ struct traderesize_hook : public df::viewscreen_tradegoodsst
 };
 
 IMPLEMENT_VMETHOD_INTERPOSE(traderesize_hook, render);
-#endif
+#endif // TRADERESIZE
 
 DFhackCExport command_result plugin_init ( color_ostream &out, vector <PluginCommand> &commands)
 {
@@ -773,10 +681,10 @@ DFhackCExport command_result plugin_init ( color_ostream &out, vector <PluginCom
 
     has_textfont = get_font_paths();
     has_overrides |= load_overrides();
-    if (has_textfont || has_overrides)
+    if (has_textfont || has_overrides) {
         hook();
-    if (!has_textfont)
-    {
+    }
+    if (!has_textfont) {
         out.color(COLOR_YELLOW);
         out << "Webfort: FONT and GRAPHICS_FONT are the same" << std::endl;
         out.color(COLOR_RESET);
