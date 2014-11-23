@@ -311,67 +311,25 @@ void write_tile_arrays(df::renderer *r, int x, int y)
     }
 }
 
-#ifdef WIN32
-void __stdcall update_tile(int x, int y)
-#else
-void update_tile(df::renderer *r, int x, int y)
-#endif
-{
-#ifdef WIN32
-    df::renderer *r = enabler->renderer;
-#endif
-
-    write_tile_arrays(r, x, y);
-    if (!enabled || !texloaded) {
-        update_tile_old_x(r, x, y);
-        return;
+struct renderer_hook : df::renderer {
+    typedef df::renderer interpose_base;
+    DEFINE_VMETHOD_INTERPOSE(void, update_tile, (int32_t x, int32_t y))
+    {
+        df::renderer* r = this;
+        write_tile_arrays(r, x, y);
+        INTERPOSE_NEXT(update_tile)(x, y);
     }
-
-
-}
-
-#ifdef WIN32
-void __stdcall render()
-#else
-void render(df::renderer *r)
-#endif
-{
-#ifdef WIN32
-    df::renderer *r = enabler->renderer;
-#endif
-
-    render_old_x(r);
-}
-
+};
+IMPLEMENT_VMETHOD_INTERPOSE(renderer_hook, update_tile);
 
 void hook()
 {
     if (enabled)
         return;
 
-    long **rVtable = (long **)enabler->renderer;
-
-#ifdef WIN32
-    HANDLE process = ::GetCurrentProcess();
-    DWORD protection = PAGE_READWRITE;
-    DWORD oldProtection;
-    if ( ::VirtualProtectEx( process, rVtable[0], 4*sizeof(void*), protection, &oldProtection ) )
-    {
-#endif
-
-    update_tile_old = (void (*)(df::renderer *r, int x, int y))rVtable[0][0];
-    rVtable[0][0] = (long)&update_tile;
-
-    render_old = (void(*)(df::renderer *r))rVtable[0][2];
-    rVtable[0][2] = (long)&render;
-
     enabled = true;
 
-#ifdef WIN32
-    VirtualProtectEx( process, rVtable[0], 4*sizeof(void*), oldProtection, &oldProtection );
-    }
-#endif
-
+    INTERPOSE_HOOK(renderer_hook, update_tile).apply(enabled);
 }
 
 void unhook()
@@ -381,23 +339,7 @@ void unhook()
 
     enabled = false;
 
-    long **rVtable = (long **)enabler->renderer;
-
-#ifdef WIN32
-    HANDLE process = ::GetCurrentProcess();
-    DWORD protection = PAGE_READWRITE;
-    DWORD oldProtection;
-    if ( ::VirtualProtectEx( process, rVtable[0], 4*sizeof(void*), protection, &oldProtection ) )
-    {
-#endif
-    rVtable[0][0] = (long)update_tile_old;
-    rVtable[0][2] = (long)render_old;
-#ifdef WIN32
-    VirtualProtectEx( process, rVtable[0], 4*sizeof(void*), oldProtection, &oldProtection );
-    }
-#endif
-
-    gps->force_full_display_count = true;
+    INTERPOSE_HOOK(renderer_hook, update_tile).apply(enabled);
 }
 
 bool get_font_paths()
