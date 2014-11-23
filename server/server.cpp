@@ -372,7 +372,7 @@ void tock(server* s, conn_hdl hdl)
     uint8_t bits = 0;
     bits |= hdl == active_conn?       1 : 0; // are you the active player?
     bits |= null_conn == active_conn? 2 : 0; // is nobody playing?
-    bits |= INGAME_TIME?                     4 : 0; // are we using in-game time?
+    bits |= INGAME_TIME?              4 : 0; // are we using in-game time?
 
     *(b++) = bits;
 

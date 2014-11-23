@@ -32,7 +32,6 @@ using namespace df::enums;
 using df::global::world;
 using std::string;
 using std::vector;
-using df::global::enabler;
 using df::global::gps;
 using df::global::ui;
 using df::global::init;
@@ -56,50 +55,6 @@ vector<string> split(const char *str, char c = ' ')
 
 DFHACK_PLUGIN("webfort");
 
-void (*update_tile_old)(df::renderer *r, int x, int y);
-void (*render_old)(df::renderer *r);
-
-#ifdef WIN32
-__declspec(naked) void render_old_x(df::renderer *r)
-{
-    __asm {
-        push ebp
-        mov ebp, esp
-
-        mov ecx, r
-        call render_old
-
-        mov esp, ebp
-        pop ebp
-        ret
-    }
-}
-#else
-#define render_old_x render_old
-#endif
-
-#ifdef WIN32
-__declspec(naked) void update_tile_old_x(df::renderer *r, int x, int y)
-{
-    __asm {
-        push ebp
-        mov ebp, esp
-
-        push y
-        push x
-
-        mov ecx, r
-        call update_tile_old
-
-        mov esp, ebp
-        pop ebp
-        ret
-    }
-}
-#else
-#define update_tile_old_x update_tile_old
-#endif
-
 struct tileref {
     int tilesetidx;
     int tile;
@@ -111,7 +66,6 @@ struct override {
     int id, type, subtype;
     struct tileref newtile;
 };
-
 
 static bool enabled, texloaded;
 static bool has_textfont, has_overrides;
@@ -127,7 +81,8 @@ volatile bool needsresize;
 // #define IS_SCREEN(_sc) strict_virtual_cast<df::_sc>(ws)
 #define IS_SCREEN(_sc) (id == &df::_sc::_identity)
 
-/* Detects if it is safe for a non-privileged user to trigger an ESC keybind.
+/*
+ * Detects if it is safe for a non-privileged user to trigger an ESC keybind.
  * It should not be safe if it would lead to the menu normally accessible by
  * hitting ESC in dwarf mode, as this would give access to keybind changes,
  * fort abandonment etc.
@@ -294,7 +249,7 @@ static bool is_text_tile(int x, int y, bool &is_map)
     return true;
 }
 
-void write_tile_arrays(df::renderer *r, int x, int y)
+void update_tilebuf(df::renderer *r, int x, int y)
 {
     const int tile = x * gps->dimy + y;
     const unsigned char *s = r->screen + tile*4;
@@ -311,12 +266,21 @@ void write_tile_arrays(df::renderer *r, int x, int y)
     }
 }
 
+void update_all_tiles(df::renderer *r)
+{
+    for (int32_t x = 0; x < gps->dimx; ++x) {
+        for (int32_t y = 0; x < gps->dimy; ++y) {
+            update_tilebuf(r, x, y);
+        }
+    }
+}
+
 struct renderer_hook : df::renderer {
     typedef df::renderer interpose_base;
     DEFINE_VMETHOD_INTERPOSE(void, update_tile, (int32_t x, int32_t y))
     {
         df::renderer* r = this;
-        write_tile_arrays(r, x, y);
+        update_tilebuf(r, x, y);
         INTERPOSE_NEXT(update_tile)(x, y);
     }
 };
@@ -329,6 +293,7 @@ void hook()
 
     enabled = true;
 
+    update_all_tiles(df::global::enabler->renderer);
     INTERPOSE_HOOK(renderer_hook, update_tile).apply(enabled);
 }
 
