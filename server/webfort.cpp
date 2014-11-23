@@ -124,8 +124,8 @@ unsigned char sc[256*256*5];
 int newwidth, newheight;
 volatile bool needsresize;
 
-//#define IS_SCREEN(_sc) df::_sc::_identity.is_direct_instance(ws)
-#define IS_SCREEN(_sc) strict_virtual_cast<df::_sc>(ws)
+// #define IS_SCREEN(_sc) strict_virtual_cast<df::_sc>(ws)
+#define IS_SCREEN(_sc) (id == &df::_sc::_identity)
 
 /* Detects if it is safe for a non-privileged user to trigger an ESC keybind.
  * It should not be safe if it would lead to the menu normally accessible by
@@ -135,6 +135,7 @@ volatile bool needsresize;
 bool is_safe_to_escape()
 {
     df::viewscreen * ws = Gui::getCurViewscreen();
+    virtual_identity* id = virtual_identity::get(ws);
     if (IS_SCREEN(viewscreen_dwarfmodest) &&
             ui->main.mode == df::ui_sidebar_mode::Default) {
         return false;
@@ -170,7 +171,8 @@ void deify(DFHack::color_ostream* raw_out, std::string nick)
  */
 static bool is_text_tile(int x, int y, bool &is_map)
 {
-    df::viewscreen * ws = Gui::getCurViewscreen();
+    df::viewscreen* ws = Gui::getCurViewscreen();
+    virtual_identity* id = virtual_identity::get(ws);
     assert(ws != NULL);
 
     int32_t w = gps->dimx, h = gps->dimy;
@@ -224,7 +226,7 @@ static bool is_text_tile(int x, int y, bool &is_map)
 
     if (IS_SCREEN(viewscreen_dungeonmodest))
     {
-        //TODO
+        // TODO: Adventure mode
 
         if (y >= h-2)
             return true;

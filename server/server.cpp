@@ -36,12 +36,17 @@ static ws::connection_hdl null_conn = std::weak_ptr<void>();
 static Client* null_client;
 
 static ws::connection_hdl active_conn = null_conn;
-typedef ws::connection_hdl conn;
+typedef ws::connection_hdl conn_hdl;
 
 static std::owner_less<std::weak_ptr<void>> conn_lt;
-static bool conn_eq(conn p, conn q)
+inline bool operator==(const conn_hdl& p, const conn_hdl& q)
 {
     return (!conn_lt(p, q) && !conn_lt(q, p));
+}
+
+inline bool operator!=(const conn_hdl& p, const conn_hdl& q)
+{
+    return conn_lt(p, q) || conn_lt(q, p);
 }
 
 static unsigned char buf[64*1024];
@@ -143,7 +148,6 @@ public:
     }
     int sync()
     {
-        // TODO: tidy up logs for human consumption
         std::string o = this->str();
         size_t i = -1;
         // remove empty lines.
@@ -182,7 +186,7 @@ private:
     server* srv;
 };
 
-Client* get_client(conn hdl)
+Client* get_client(conn_hdl hdl)
 {
     auto it = clients.find(hdl);
     if (it == clients.end()) {
@@ -194,6 +198,7 @@ Client* get_client(conn hdl)
 int32_t round_timer()
 {
     if (INGAME_TIME) {
+        // FIXME: check if we are actually in-game
         return World::ReadCurrentTick(); // uint32_t
     } else {
         return time(NULL); // time_t, usually int32_t
@@ -201,13 +206,13 @@ int32_t round_timer()
 }
 
 
-void set_active(conn newc)
+void set_active(conn_hdl newc)
 {
-    if (conn_eq(active_conn, newc)) { return; }
+    if (active_conn == newc) { return; }
     Client* newcl = get_client(newc); // fail early
     active_conn = newc;
 
-    if (!conn_eq(active_conn, null_conn)) {
+    if (active_conn != null_conn) {
         newcl->atime = round_timer();
         memset(newcl->mod, 0, sizeof(newcl->mod));
 
@@ -248,7 +253,7 @@ std::string status_json()
     Client* active_cl = get_client(active_conn);
     std::string current_player = active_cl->nick;
     int32_t time_left = -1;
-    bool is_somebody_playing = !conn_eq(active_conn, null_conn);
+    bool is_somebody_playing = active_conn != null_conn;
 
     if (TURNTIME != 0 && is_somebody_playing && clients.size() > 1) {
         time_t now = round_timer();
@@ -269,7 +274,7 @@ std::string status_json()
     return json.str();
 }
 
-void on_http(server* s, conn hdl)
+void on_http(server* s, conn_hdl hdl)
 {
     server::connection_ptr con = s->get_con_from_hdl(hdl);
     std::stringstream output;
@@ -281,7 +286,7 @@ void on_http(server* s, conn hdl)
     }
 }
 
-bool validate_open(server* s, conn hdl)
+bool validate_open(server* s, conn_hdl hdl)
 {
     auto raw_conn = s->get_con_from_hdl(hdl);
 
@@ -295,7 +300,7 @@ bool validate_open(server* s, conn hdl)
     return true;
 }
 
-void on_open(server* s, conn hdl)
+void on_open(server* s, conn_hdl hdl)
 {
     if (s->get_con_from_hdl(hdl)->get_subprotocol() == WF_INVALID) {
         s->close(hdl, 4000, "Invalid version, expected '" WF_VERSION "'.");
@@ -326,11 +331,11 @@ void on_open(server* s, conn hdl)
     clients[hdl] = cl;
 }
 
-void on_close(server* s, conn c)
+void on_close(server* s, conn_hdl c)
 {
     Client* cl = get_client(c);
     if (cl != null_client) {
-        if (conn_eq(c, active_conn)) {
+        if (c == active_conn) {
             set_active(null_conn);
         }
         delete cl;
@@ -338,13 +343,13 @@ void on_close(server* s, conn c)
     clients.erase(c);
 }
 
-void tock(server* s, conn hdl)
+void tock(server* s, conn_hdl hdl)
 {
     Client* cl = get_client(hdl);
     Client* active_cl = get_client(active_conn);
     int32_t time_left = -1;
 
-    if (TURNTIME != 0 && !conn_eq(active_conn, null_conn) && clients.size() > 1) {
+    if (TURNTIME != 0 && active_conn != null_conn && clients.size() > 1) {
         time_t now = round_timer();
         int played = now - active_cl->atime;
         if (played < TURNTIME) {
@@ -365,8 +370,8 @@ void tock(server* s, conn hdl)
 
     // [2] Bitfield.
     uint8_t bits = 0;
-    bits |= conn_eq(hdl, active_conn)?       1 : 0; // are you the active player?
-    bits |= conn_eq(null_conn, active_conn)? 2 : 0; // is nobody playing?
+    bits |= hdl == active_conn?       1 : 0; // are you the active player?
+    bits |= null_conn == active_conn? 2 : 0; // is nobody playing?
     bits |= INGAME_TIME?                     4 : 0; // are we using in-game time?
 
     *(b++) = bits;
@@ -413,20 +418,20 @@ void tock(server* s, conn hdl)
 }
 
 
-void on_message(server* s, conn hdl, message_ptr msg)
+void on_message(server* s, conn_hdl hdl, message_ptr msg)
 {
     auto str = msg->get_payload();
     const unsigned char *mdata = (const unsigned char*) str.c_str();
     int msz = str.size();
 
     if (mdata[0] == 112 && msz == 3) { // ResizeEvent
-        if (conn_eq(hdl, active_conn)) {
+        if (hdl == active_conn) {
             newwidth = mdata[1];
             newheight = mdata[2];
             needsresize = true;
         }
     } else if (mdata[0] == 111 && msz == 4) { // KeyEvent
-        if (conn_eq(hdl, active_conn)) {
+        if (hdl == active_conn) {
             SDL::Key k = mdata[2] ? (SDL::Key)mdata[2] : mapInputCodeToSDL(mdata[1]);
             bool is_safe_key = (k != SDL::K_ESCAPE || is_safe_to_escape());
             if (k != SDL::K_UNKNOWN && is_safe_key) {
@@ -464,11 +469,11 @@ void on_message(server* s, conn hdl, message_ptr msg)
         Client* cl = get_client(hdl);
         memset(cl->mod, 0, sizeof(cl->mod));
     } else if (mdata[0] == 116) { // requestTurn
-        assert(conn_eq(active_conn, active_conn));
-        assert(!conn_eq(hdl, null_conn));
-        if (conn_eq(hdl, active_conn)) {
+        assert(active_conn == active_conn);
+        assert(hdl != null_conn);
+        if (hdl == active_conn) {
             set_active(null_conn);
-        } else if (conn_eq(active_conn, null_conn)) {
+        } else if (active_conn == null_conn) {
             set_active(hdl);
         }
     } else {
@@ -478,7 +483,7 @@ void on_message(server* s, conn hdl, message_ptr msg)
     return;
 }
 
-void on_init(conn hdl, boost::asio::ip::tcp::socket & s)
+void on_init(conn_hdl hdl, boost::asio::ip::tcp::socket & s)
 {
     s.set_option(boost::asio::ip::tcp::no_delay(true));
 }
