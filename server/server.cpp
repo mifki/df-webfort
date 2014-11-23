@@ -152,7 +152,7 @@ public:
         }
         // Remove uninformative [application]
         while ((i = o.find("[application]")) != std::string::npos) {
-            o.replace(i, 2, "[WEBFORT]");
+            o.replace(i, 13, "[WEBFORT]");
         }
 
         *dfout << o;

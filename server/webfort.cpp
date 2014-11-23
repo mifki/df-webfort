@@ -124,7 +124,8 @@ unsigned char sc[256*256*5];
 int newwidth, newheight;
 volatile bool needsresize;
 
-#define IS_SCREEN(_sc) df::_sc::_identity.is_direct_instance(ws)
+//#define IS_SCREEN(_sc) df::_sc::_identity.is_direct_instance(ws)
+#define IS_SCREEN(_sc) strict_virtual_cast<df::_sc>(ws)
 
 /* Detects if it is safe for a non-privileged user to trigger an ESC keybind.
  * It should not be safe if it would lead to the menu normally accessible by
@@ -176,16 +177,6 @@ static bool is_text_tile(int x, int y, bool &is_map)
 
     is_map = false;
 
-    if (IS_SCREEN(viewscreen_dungeonmodest))
-    {
-        //TODO
-
-        if (y >= h-2)
-            return true;
-
-        return false;
-    }
-
     if (!x || !y || x == w - 1 || y == h - 1)
        return has_textfont;
 
@@ -230,6 +221,16 @@ static bool is_text_tile(int x, int y, bool &is_map)
 
     if (!has_textfont)
         return false;
+
+    if (IS_SCREEN(viewscreen_dungeonmodest))
+    {
+        //TODO
+
+        if (y >= h-2)
+            return true;
+
+        return false;
+    }
 
     if (IS_SCREEN(viewscreen_setupadventurest))
     {
