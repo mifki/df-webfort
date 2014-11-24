@@ -32,6 +32,7 @@ void wsthreadmain(void*);
 
 bool is_safe_to_escape();
 void show_announcement(std::string announcement);
+
 /*
  * DFHack Includes
  * The includes that were commented out were done simply by a process of
@@ -82,4 +83,5 @@ using namespace DFHack;
 // #include "df/viewscreen_petst.h"
 
 void deify(DFHack::color_ostream* raw_out, std::string nick);
+void quicksave(DFHack::color_ostream* out);
 #endif

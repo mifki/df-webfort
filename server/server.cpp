@@ -225,6 +225,8 @@ void set_active(conn_hdl newc)
         }
         ss << " has seized control.";
         show_announcement(ss.str());
+    } else {
+        quicksave(raw_out);
     }
 
     if (!(*df::global::pause_state)) {

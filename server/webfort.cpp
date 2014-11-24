@@ -11,6 +11,8 @@
 #include <map>
 #include <vector>
 
+// #undef NDEBUG
+#include <cassert>
 #ifdef WIN32
     #define WIN32_LEAN_AND_MEAN
     #include <windows.h>
@@ -118,6 +120,11 @@ void deify(DFHack::color_ostream* raw_out, std::string nick)
     if (is_dwarf_mode()) {
         Core::getInstance().runCommand(*raw_out, "deify " + nick);
     }
+}
+
+void quicksave(DFHack::color_ostream* out)
+{
+    Core::getInstance().runCommand(*out, "quicksave");
 }
 
 /*
@@ -251,6 +258,8 @@ static bool is_text_tile(int x, int y, bool &is_map)
 
 void update_tilebuf(df::renderer *r, int x, int y)
 {
+    assert(0 <= x && x < gps->dimx);
+    assert(0 <= y && y < gps->dimy);
     const int tile = x * gps->dimy + y;
     const unsigned char *s = r->screen + tile*4;
     unsigned char *ss = sc + tile*4;
@@ -262,14 +271,17 @@ void update_tilebuf(df::renderer *r, int x, int y)
     }
 
     for (auto i = clients.begin(); i != clients.end(); i++) {
-        i->second->mod[tile] = 0;
+       i->second->mod[tile] = 0;
     }
 }
 
 void update_all_tiles(df::renderer *r)
 {
-    for (int32_t x = 0; x < gps->dimx; ++x) {
-        for (int32_t y = 0; x < gps->dimy; ++y) {
+    assert(!!gps);
+    assert(!!df::global::enabler);
+
+    for (int32_t x = 0; x < gps->dimx; x++) {
+        for (int32_t y = 0; y < gps->dimy; y++) {
             update_tilebuf(r, x, y);
         }
     }
