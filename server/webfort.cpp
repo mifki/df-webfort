@@ -38,6 +38,9 @@ using df::global::gps;
 using df::global::ui;
 using df::global::init;
 
+using df::global::enabler;
+using df::renderer;
+
 vector<string> split(const char *str, char c = ' ')
 {
     vector<string> result;
@@ -287,16 +290,21 @@ void update_all_tiles(df::renderer *r)
     }
 }
 
-struct renderer_hook : df::renderer {
-    typedef df::renderer interpose_base;
-    DEFINE_VMETHOD_INTERPOSE(void, update_tile, (int32_t x, int32_t y))
+#include "renderer_wrap.hpp"
+struct renderhook : public renderer_wrap {
+public:
+    renderhook(renderer* r):renderer_wrap(r) {}
+    void update_tile(int32_t x, int32_t y)
     {
-        df::renderer* r = this;
-        update_tilebuf(r, x, y);
-        INTERPOSE_NEXT(update_tile)(x, y);
+        renderer_wrap::update_tile(x, y);
+        update_tilebuf(this, x, y);
+    }
+    void update_all()
+    {
+        renderer_wrap::update_all();
+        update_all_tiles(this);
     }
 };
-IMPLEMENT_VMETHOD_INTERPOSE(renderer_hook, update_tile);
 
 void hook()
 {
@@ -304,9 +312,8 @@ void hook()
         return;
 
     enabled = true;
-
-    update_all_tiles(df::global::enabler->renderer);
-    INTERPOSE_HOOK(renderer_hook, update_tile).apply(enabled);
+    enabler->renderer = new renderhook(enabler->renderer);
+    enabler->renderer->update_all();
 }
 
 void unhook()
@@ -316,7 +323,7 @@ void unhook()
 
     enabled = false;
 
-    INTERPOSE_HOOK(renderer_hook, update_tile).apply(enabled);
+    delete enabler->renderer;
 }
 
 bool get_font_paths()
