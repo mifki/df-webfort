@@ -30,6 +30,9 @@ extern volatile bool needsresize;
 
 void wsthreadmain(void*);
 
+bool is_safe_to_escape();
+void show_announcement(std::string announcement);
+
 /*
  * DFHack Includes
  * The includes that were commented out were done simply by a process of
@@ -39,13 +42,16 @@ void wsthreadmain(void*);
 
 #include "PluginManager.h"
 #include "VersionInfo.h"
+#include "VTableInterpose.h"
 #include "modules/MapCache.h"
 #include "modules/Gui.h"
+#include "modules/World.h"
 #include "df/graphic.h"
 #include "df/enabler.h"
 #include "df/renderer.h"
 #include "df/building.h"
 #include "df/buildings_other_id.h"
+#include "df/unit.h"
 #include "df/items_other_id.h"
 #include "df/viewscreen_dwarfmodest.h"
 #include "df/viewscreen_setupadventurest.h"
@@ -56,10 +62,11 @@ void wsthreadmain(void*);
 #include "df/viewscreen_overallstatusst.h"
 #include "df/viewscreen_movieplayerst.h"
 
+using namespace DFHack;
+
 // #include "Core.h"
 // #include "Console.h"
 // #include "Export.h"
-// #include "VTableInterpose.h"
 // #include "modules/Maps.h"
 // #include "modules/World.h"
 // #include "modules/Screen.h"
@@ -75,4 +82,6 @@ void wsthreadmain(void*);
 // #include "df/viewscreen_tradegoodsst.h"
 // #include "df/viewscreen_petst.h"
 
+void deify(DFHack::color_ostream* raw_out, std::string nick);
+void quicksave(DFHack::color_ostream* out);
 #endif
