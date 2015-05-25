@@ -1,3 +1,5 @@
+# This repository is not updated anymore, development continues in https://github.com/Ankoku/df-webfort and https://github.com/Alloyed/df-webfort
+
 ## Web Fortress ##
 
 This is a plugin for [Dwarf Fortress](http://bay12games.com) / [DFHack](http://github.com/dfhack/dfhack) that allows to play Dwarf Fortress remotely.
