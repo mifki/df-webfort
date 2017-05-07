@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Web Fortress</title>
+  <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+  <link href="webfort.css" rel="stylesheet">
+</head>
+
+<body>
+  <div id="game-container" class="col col-left">
+    <div class="status">
+      <div id="user-count"> - <i class="fa fa-users"></i> </div>
+      <div id="message"> Loading... </div>
+      <div id="time-left"> -:-- <i class="fa fa-clock-o"> </i> </div>
+    </div>
+    <div class="canvas-container">
+      <canvas id="myCanvas" width="1280" height="800"></canvas>
+    </div>
+  </div>
+
+  <div id="webchat-container" class="col col-right"></div>
+  <script src="js/stats.min.js"></script>
+  <script src="js/keycode.js"></script>
+  <script src="js/params.js"></script>
+  <script src="js/webfort.js"></script>
+  <script src="js/webchat.js"></script>
+</body>
+</html>

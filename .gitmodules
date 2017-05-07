@@ -1,0 +1,3 @@
+[submodule "server/websocketpp"]
+	path = server/websocketpp
+	url = git@github.com:Alloyed/websocketpp.git

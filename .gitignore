@@ -1,0 +1,6 @@
+/server/df_linux
+/server/dfhack
+/server/build
+/server/deps
+/package/
+*.zip

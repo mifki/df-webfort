@@ -1,0 +1,79 @@
+body {
+  margin: 0;
+  background-color: rgb(32,39,49);
+  overflow: hidden;
+}
+
+.status {
+  height: 1.5em;
+  line-height: 1.5em;
+  background-color: orange;
+  color: white;
+  font-family: monospace;
+  cursor: pointer;
+}
+
+#message {
+  float: left;
+  width: 70%;
+  text-align: center;
+}
+
+#user-count {
+  float: left;
+  width: 15%;
+  text-align: left;
+}
+
+#time-left {
+  float: left;
+  width: 15%;
+  text-align: right;
+}
+
+#webchat {
+  width: 100%;
+  height: 100%;
+}
+
+.col {
+  position: relative;
+  min-height: 1px;
+  float: left;
+  margin-left:  0; margin-right:  0;
+  padding-left: 0; padding-right: 0;
+}
+
+.col.col-right {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: 25%;
+}
+
+.col.col-right.hide-chat {
+  width: 0;
+}
+
+.col-left {
+  width: 75%;
+  height: 100vh;
+}
+
+.col-left.hide-chat {
+  width: 100%;
+}
+
+.canvas-container {
+  text-align: center;
+  position: absolute;
+  bottom: 0;
+  top: 0;
+  margin-top: 1.5em;
+  width: 100%;
+}
+
+canvas {
+  position: relative;
+}

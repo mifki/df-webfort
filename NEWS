@@ -1,0 +1,19 @@
+v2.0.0
+======
+* New maintainer
+* Changed socket library to websocketpp
+* Moved build system to CMake
+* Removed queuing system
+* Removed idle timer
+* Added environment vars for basic configuration
+* Changed from host-side resizing to a fixed game size
+* Added letterboxing to client-side views
+* Added IRC sidepane
+* Added user count, time left, and player nicknames to UI
+* Added configurable client parameters
+* Moved from fixed-delay to capped framerate
+* Added version negotation
+
+v1.10
+=====
+* Initial release
